@@ -1,0 +1,3 @@
+# Jinja templates: keep them out of GitHub's language stats so the repo shows as Python.
+templates/** linguist-detectable=false
+output_templates/** linguist-detectable=false
