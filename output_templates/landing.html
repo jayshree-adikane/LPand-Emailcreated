@@ -1,0 +1,84 @@
+{% from "_partials.html" import head_assets, header, banner, footer with context %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ lp.page_title or campaign_name }}</title>
+  {% if lp.meta_description %}<meta name="description" content="{{ lp.meta_description }}">{% endif %}
+{{ head_assets() }}
+</head>
+<body>
+{{ header() }}
+
+{{ banner() }}
+
+<main class="container main-grid{{ ' form-left' if layout.form_position == 'left' }}">
+  <section class="content">
+    {% if not layout.hero_text %}
+    {% if lp.eyebrow %}<p class="eyebrow">{{ lp.eyebrow }}</p>{% endif %}
+    {% if lp.headline %}<h1>{{ lp.headline }}</h1>{% endif %}
+    {% if lp.subheadline %}<p class="subheadline">{{ lp.subheadline }}</p>{% endif %}
+    {% endif %}
+    <div class="rich">{{ lp.body | content }}</div>
+  </section>
+
+  <aside class="form-card" id="form">
+    {% if lp.form_title %}<h2>{{ lp.form_title }}</h2>{% endif %}
+    {% if lp.form_intro %}<p class="form-intro">{{ lp.form_intro }}</p>{% endif %}
+
+    <form id="lead-form" novalidate>
+      <div class="fields">
+      {% for f in lp.fields %}
+        {% set id = 'f_' ~ f.name %}
+        {% if f.type == 'hidden' %}
+          <input type="hidden" name="{{ f.name }}" value="{{ f.placeholder }}">
+        {% elif f.type == 'checkbox' %}
+          <div class="field full field-check">
+            <label class="check"><input type="checkbox" id="{{ id }}" name="{{ f.name }}" value="Yes" {% if f.required %}required{% endif %}>
+              <span>{{ f.label }}{% if f.required %} <b class="req">*</b>{% endif %}</span></label>
+            <small class="error-msg"></small>
+          </div>
+        {% else %}
+          <div class="field {{ 'half' if f.width == 'half' else 'full' }}">
+            <label for="{{ id }}">{{ f.label }}{% if f.required %} <b class="req">*</b>{% endif %}</label>
+            {% if f.type == 'select' %}
+              <select id="{{ id }}" name="{{ f.name }}" {% if f.required %}required{% endif %}>
+                <option value="">{{ f.placeholder or 'Select' }}</option>
+                {% for o in f.options %}<option value="{{ o }}">{{ o }}</option>{% endfor %}
+              </select>
+            {% elif f.type == 'radio' %}
+              <div class="radios">
+              {% for o in f.options %}
+                <label class="check"><input type="radio" name="{{ f.name }}" value="{{ o }}" {% if f.required %}required{% endif %}> <span>{{ o }}</span></label>
+              {% endfor %}
+              </div>
+            {% elif f.type == 'textarea' %}
+              <textarea id="{{ id }}" name="{{ f.name }}" rows="3" placeholder="{{ f.placeholder }}" {% if f.required %}required{% endif %}></textarea>
+            {% else %}
+              <input id="{{ id }}" name="{{ f.name }}" type="{{ f.type }}" placeholder="{{ f.placeholder }}"{{ ' autocomplete="email"' | safe if f.type == 'email' }}{{ ' autocomplete="tel"' | safe if f.type == 'tel' }}{{ ' required' if f.required }}>
+            {% endif %}
+            <small class="error-msg"></small>
+          </div>
+        {% endif %}
+      {% endfor %}
+      </div>
+
+      {# Campaign tracking, filled from the URL query string by script.js #}
+      {% for utm in ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] %}
+      <input type="hidden" name="{{ utm }}" value="">
+      {% endfor %}
+      <input type="text" name="website_hp" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+      {% if lp.consent_text %}<div class="consent">{{ lp.consent_text | content }}</div>{% endif %}
+      <button type="submit" class="btn">{{ lp.submit_text or 'Submit' }}</button>
+      <p class="form-error" role="alert" hidden></p>
+    </form>
+  </aside>
+</main>
+
+{{ footer() }}
+<script>window.LP_CONFIG = {{ js_config | tojson }};</script>
+<script src="assets/script.js"></script>
+</body>
+</html>

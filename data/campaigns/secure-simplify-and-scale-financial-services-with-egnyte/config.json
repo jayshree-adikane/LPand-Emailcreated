@@ -1,0 +1,170 @@
+{
+  "slug": "secure-simplify-and-scale-financial-services-with-egnyte",
+  "campaign_name": "Egnyte Solution Brief",
+  "partner_name": "valasys",
+  "partner_label": "",
+  "brand": {
+    "font": "",
+    "primary_color": "#0b5cff",
+    "button_text_color": "#ffffff",
+    "heading_color": "#0f172a",
+    "footer_bg": "#42d0ff",
+    "footer_text_color": "#cbd5e1"
+  },
+  "layout": {
+    "header_style": "solid",
+    "header_bg": "#000000",
+    "logo_height": "48",
+    "partner_logo_height": "44",
+    "header_padding": "14",
+    "banner_height": "",
+    "sticky": false,
+    "hero_text": false,
+    "hero_text_color": "#ffffff",
+    "hero_shade": true,
+    "form_position": "right",
+    "footer_logo_bg": "white"
+  },
+  "lp": {
+    "page_title": "Secure, Simplify, and Scale Financial Services with Egnyte",
+    "eyebrow": "",
+    "headline": "",
+    "subheadline": "",
+    "meta_description": "",
+    "form_title": "Download the eBook",
+    "submit_text": "Download Now",
+    "form_intro": "",
+    "form_action": "",
+    "body": "<p><strong>Secure, Simplify, and Scale Financial Services with Egnyte</strong></p><p>Empower your organization with an AI-powered content platform that enables secure collaboration, strengthens governance, simplifies compliance, and accelerates business operations.</p><p><a href=\"Download the Solution Brief\" rel=\"noopener noreferrer\" target=\"_blank\"><strong>Download the Solution Brief</strong></a></p><p>Financial services organizations face growing pressure to manage sensitive information securely while keeping pace with evolving regulations, cybersecurity threats, and increasing client expectations. Legacy document management systems often create operational inefficiencies, fragmented collaboration, and governance challenges.</p><p>This solution brief explores how Egnyte's intelligent content platform helps organizations centralize document management, automate compliance, strengthen data security, and unlock AI-powered insights to improve productivity and support business growth.</p><p>What You'll Learn</p><p>Secure Content Collaboration</p><p>A centralized platform that enables secure file sharing, seamless collaboration, and flexible access across teams and business partners.\tAI-Powered Intelligence</p><p>Built-in AI transforms unstructured data into actionable insights while maintaining governance and data privacy.\tGovernance &amp; Compliance</p><p>Automated governance, policy-driven controls, and audit-ready capabilities that simplify regulatory compliance.\tOperational Efficiency</p><p>Intelligent workflows reduce manual effort, streamline document management, and improve productivity.</p><p>Modernizing Financial Services with Intelligent Content Management</p><p>Financial services organizations need more than traditional document management. Egnyte brings together secure collaboration, AI-powered intelligence, and automated governance to help firms simplify compliance, protect sensitive information, and improve operational efficiency.</p><p>\"Egnyte combines cloud content management, data security, and AI into one intelligent content platform to help organizations improve productivity, automate business processes, and safeguard critical data.\"</p><p>Why Financial Services Organizations Choose Egnyte</p><p>\u2714 Secure Collaboration</p><ol><li>Enable teams, clients, and partners to collaborate confidently with centralized, secure document sharing.</li></ol><p>\u2714 AI-Driven Insights</p><ol><li>Transform unstructured financial data into actionable intelligence that supports faster, more informed decisions.</li></ol><p>\u2714 Simplified Compliance</p><p>Strengthen governance with automated policies, audit-ready controls, and regulatory compliance capabilities.</p><p>\u2714 Greater Operational Efficiency</p><p>Streamline document workflows, reduce manual effort, and improve productivity across the organization.</p>",
+    "consent_text": "",
+    "fields": [
+      {
+        "label": "First Name",
+        "name": "first_name",
+        "type": "text",
+        "required": true,
+        "width": "half",
+        "placeholder": "",
+        "options": []
+      },
+      {
+        "label": "Last Name",
+        "name": "last_name",
+        "type": "text",
+        "required": true,
+        "width": "half",
+        "placeholder": "",
+        "options": []
+      },
+      {
+        "label": "Business Email",
+        "name": "business_email",
+        "type": "email",
+        "required": true,
+        "width": "full",
+        "placeholder": "",
+        "options": []
+      },
+      {
+        "label": "Phone Number",
+        "name": "phone_number",
+        "type": "tel",
+        "required": false,
+        "width": "half",
+        "placeholder": "",
+        "options": []
+      },
+      {
+        "label": "Company Name",
+        "name": "company_name",
+        "type": "text",
+        "required": true,
+        "width": "half",
+        "placeholder": "",
+        "options": []
+      },
+      {
+        "label": "Job Title",
+        "name": "job_title",
+        "type": "text",
+        "required": true,
+        "width": "half",
+        "placeholder": "",
+        "options": []
+      },
+      {
+        "label": "Country",
+        "name": "country",
+        "type": "select",
+        "required": true,
+        "width": "half",
+        "placeholder": "",
+        "options": [
+          "India",
+          "United States",
+          "United Kingdom",
+          "Canada",
+          "Australia",
+          "Singapore",
+          "United Arab Emirates",
+          "Germany",
+          "Other"
+        ]
+      },
+      {
+        "label": "I agree to receive communications and accept the privacy policy.",
+        "name": "i_agree_to_receive_communications_and_accept_the_privacy_policy",
+        "type": "checkbox",
+        "required": true,
+        "width": "full",
+        "placeholder": "",
+        "options": []
+      }
+    ]
+  },
+  "ty": {
+    "heading": "Thank you!",
+    "download_text": "Download the PDF",
+    "body": ""
+  },
+  "email": {
+    "subject": "",
+    "preheader": "",
+    "headline": "",
+    "greeting": "",
+    "cta_text": "Download Now",
+    "cta_url": "",
+    "signoff": "",
+    "unsubscribe_url": "",
+    "footer_note": "",
+    "body": ""
+  },
+  "company": {
+    "name": "",
+    "website": "",
+    "address": "",
+    "phone": "",
+    "email": "",
+    "privacy_url": "",
+    "terms_url": "",
+    "linkedin": "",
+    "twitter": "",
+    "facebook": "",
+    "instagram": "",
+    "youtube": "",
+    "copyright": ""
+  },
+  "notify": {
+    "notify_email": "",
+    "send_confirmation": false
+  },
+  "public_base_url": "",
+  "created_at": "2026-10-01T08:24:18.669318+00:00",
+  "files": {
+    "logo": "logo.png",
+    "partner_logo": "partner-logo.png",
+    "banner": "banner.jpg",
+    "pdf": "Product-Brief-Secure-Simplify-and-Scale-Financial-Services-With-Egnyte-1.pdf"
+  },
+  "updated_at": "2026-10-01T08:31:19.557520+00:00"
+}
