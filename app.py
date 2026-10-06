@@ -20,6 +20,7 @@ from flask import Flask, Response, abort, jsonify, render_template, request, sen
 from flask_cors import CORS
 
 import generator as gen
+from markupsafe import Markup
 
 BASE = Path(__file__).parent
 
@@ -214,6 +215,98 @@ def duplicate_campaign(slug):
     return jsonify(slug=new)
 
 
+# ---------------------------------------------------------------- ready-made designs
+
+DEMO_PDF = (b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj "
+            b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF")
+
+
+@app.get("/templates")
+def templates_gallery():
+    return render_template("templates_gallery.html")
+
+
+@app.get("/api/templates")
+def list_templates():
+    return jsonify(gen.library())
+
+
+@app.get("/templates/preview/<kind>/<tid>")
+def template_preview(kind, tid):
+    """A ready-made design as a full page: with a campaign's assets (?slug=) or with the demo content."""
+    slug = request.args.get("slug", "")
+    if slug:
+        _require(slug)
+        if not (gen.GENERATED / slug / "landing-page" / "assets" / "style.css").exists():
+            gen.build(slug, public_base())
+        _, ctx = gen.build_context(slug, public_base())
+        base, ctx["img_base"] = f"/c/{slug}/landing-page/", f"/c/{slug}/email-template/images/"
+    else:
+        ctx, base = gen.demo_context(), "/templates/demo/"
+        ctx["img_base"] = "/templates/demo/assets/"
+    ctx["js_config"] = {**ctx["js_config"], "formAction": ""}  # previews never send leads
+    try:
+        body, css = gen.render_library(kind, tid, ctx)
+    except KeyError:
+        abort(404)
+    if kind == "email":
+        html_body, leftover = gen.email_visual({"html": body, "css": css}, slug or "demo", ctx)
+        page = gen.env.get_template("email_visual.html").render(**ctx, visual_body=Markup(html_body), visual_css=Markup(leftover))
+    else:
+        page = gen.env.get_template("landing.html" if kind == "landing" else "thankyou.html").render(
+            **ctx, visual_body=Markup(gen.fill_blocks(body, ctx)), visual_css=Markup(css))
+    return page.replace("<head>", f'<head>\n  <base href="{base}">', 1)
+
+
+@app.get("/templates/demo/assets/<path:name>")
+def demo_asset(name):
+    if name in ("style.css", "script.js", "effects.js"):
+        text = gen.env.get_template(name).render(**gen.demo_context())
+        return Response(text, mimetype="text/css" if name.endswith(".css") else "application/javascript")
+    if name in gen.DEMO_SVGS:
+        return Response(gen.DEMO_SVGS[name], mimetype="image/svg+xml")
+    if name == "guide.pdf":
+        return Response(DEMO_PDF, mimetype="application/pdf")
+    abort(404)
+
+
+@app.get("/api/campaigns/<slug>/library/<kind>/<tid>")
+def library_design(slug, kind, tid):
+    """A ready-made design rendered with this campaign's content, ready to load into the editor."""
+    _require(slug, kind)
+    try:
+        body, css = gen.library_for_editor(kind, tid, slug, public_base())
+    except KeyError:
+        abort(404)
+    return jsonify(html=body, css=css)
+
+
+@app.post("/api/campaigns/from-template")
+def create_from_template():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify(error="Please enter a campaign name."), 400
+    slug = unique_slug(gen.slugify(name))
+    cfg = gen.new_campaign_config(name, slug)
+    now = datetime.now(timezone.utc).isoformat()
+    cfg.update(created_at=now, updated_at=now)
+    gen.save_config(slug, cfg)
+    for kind in gen.VISUAL_PAGES:
+        tid = data.get(kind)
+        if not tid:
+            continue
+        try:
+            body, css = gen.library_for_editor(kind, tid, slug, public_base())
+        except KeyError:
+            continue
+        gen.save_visual(slug, kind, {"project": None, "html": body, "css": "", "base_css": css, "template": tid})
+        cfg["visual"][kind] = True
+    gen.save_config(slug, cfg)
+    gen.build(slug, public_base())
+    return jsonify(slug=slug)
+
+
 # ---------------------------------------------------------------- visual (drag & drop) editor
 
 def _require(slug, page=None):
@@ -237,13 +330,21 @@ def get_visual(slug, page):
     _require(slug, page)
     cfg = gen.load_config(slug)
     design = gen.load_visual(slug, page)
+    project = design.get("project") if design else None
+    if project:
+        seed = None
+    elif design:  # created from a ready-made design and not opened in the editor yet
+        seed = design.get("html", "")
+    else:
+        seed = gen.visual_seed(slug, page, public_base())
     return jsonify(
         enabled=bool((cfg.get("visual") or {}).get(page)),
-        project=design.get("project") if design else None,
+        project=project,
+        base_css=(design or {}).get("base_css", ""),
         custom={k: (design or {}).get(k, "") for k in CUSTOM_CODE_KEYS},
         form=_form_settings(cfg),
         meta=_editor_meta(slug),
-        seed=None if design else gen.visual_seed(slug, page, public_base()),
+        seed=seed,
         blocks=gen.block_previews(slug, public_base()),
     )
 
@@ -254,7 +355,8 @@ def save_visual(slug, page):
     data = request.get_json(silent=True) or {}
     if not isinstance(data.get("html"), str):
         return jsonify(error="Missing html"), 400
-    design = {"project": data.get("project"), "html": data["html"], "css": data.get("css", "")}
+    design = {"project": data.get("project"), "html": data["html"], "css": data.get("css", ""),
+              "base_css": str(data.get("base_css") or ""), "template": data.get("template") or ""}
     design.update({k: str(data.get(k) or "") for k in CUSTOM_CODE_KEYS})
     gen.save_visual(slug, page, design)
     cfg = gen.load_config(slug)
