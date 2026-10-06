@@ -47,3 +47,19 @@ The form still posts to this server unless you set a custom form action.
 
 ## Content formatting
 Blank line = paragraph · `- item` = bullet · `## Heading` · `**bold**` · `*italic*` · `[text](https://url)`
+
+## Visual drag & drop editor (Elementor-style)
+Open it from the builder's **🎨 Visual editor** button or the **Page design** card (`/editor/<slug>/landing`, `/editor/<slug>/thankyou`, `/editor/<slug>/email`).
+
+- **Widgets**: sections, 1–4 columns, 30/70 and 70/30 layouts, boxes, spacers, dividers, headings, text, buttons, images (upload or pick), video, lists, quotes, a hero banner, image + text, and feature cards. Drag them onto the page.
+- **Style**: spacing (margin/padding), alignment and flex layout, size, typography (fonts, size, weight, colour, alignment), background, border, radius, shadow and effects. Styles apply to the selected element only.
+- **Settings**: links, alt text and IDs. **Layers**: the page tree, where you can reorder, hide or select elements.
+- Desktop / tablet / mobile views (styles can differ per device), undo/redo, outlines, preview, and an HTML/CSS view.
+- **Live campaign widgets** (dashed): site header, banner, banner strip, lead form, PDF button and footer. They always show what's set in the builder, so form fields, logos and footer details stay in sync, and form submission, the thank-you page and the PDF auto-download keep working.
+- **Save & Publish** stores the design (`data/campaigns/<slug>/visual/<page>.json`) and switches that page to it. The Page design card can switch back to the standard template at any time without losing the design. **Reset** discards the design.
+- **+ Add**: every selected element has a **+** button in its toolbar (adds after it, or inside an empty column/box). There's also **Add** in the top bar and **Add section** at the bottom of the canvas.
+- **Form**: edit the lead-form fields (drag to reorder, half/full width, required, options), the texts and the consent from the editor. The form is sticky while scrolling, and each form block has a switch to turn that off.
+- **Mobile**: choose the Mobile view and any style you set applies to phones only. Settings → *Hide on desktop / tablet / mobile*. **Code** adds custom CSS, mobile-only CSS and JavaScript (no JavaScript in email).
+- **Email editor**: table-based widgets (text, heading, button, image, 2/3 columns, image + text, highlight box, divider, spacer) and live campaign rows (header, banner, CTA, sign-off, footer with unsubscribe). On publish, styles are inlined for email clients, mobile rules stay in `<style>` with `!important`, and an Outlook wrapper is added.
+- **Advanced tab**: give any element (box, section, image, text) a **link**: scroll to the form, open the PDF, the landing page or any URL, optionally in a new tab. On web pages `effects.js` makes it clickable; in emails it becomes a real `<a>`. You can also add **entrance animations** (fade, slide, zoom, bounce, flip; speed, delay, preview) and **hover effects** (grow, shrink, lift, glow, brighten, fade). Animations respect "reduce motion", and content stays visible if JavaScript fails.
+- **Easier editing**: a breadcrumb (Section › Column › Heading) to jump to parents, plain names in Layers, a **?** help guide (shown the first time), and colour fields that open the browser's colour chooser with a one-click palette.

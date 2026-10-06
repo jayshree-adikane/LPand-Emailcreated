@@ -120,7 +120,9 @@ def list_campaigns():
 def get_campaign(slug):
     if not (gen.campaign_dir(slug) / "config.json").exists():
         abort(404)
-    return jsonify(gen.load_config(slug))
+    cfg = gen.load_config(slug)
+    cfg["visual_saved"] = {p: gen.visual_path(slug, p).exists() for p in gen.VISUAL_PAGES}
+    return jsonify(cfg)
 
 
 @app.post("/api/campaigns")
@@ -155,6 +157,7 @@ def save_campaign():
         return jsonify(error=f"Could not fetch file URL: {e}"), 400
 
     cfg["files"] = files
+    cfg["visual"] = existing.get("visual", {})  # visual-editor mode is managed by the editor, not this form
     cfg.setdefault("lp", {})["fields"] = gen.normalise_fields(cfg["lp"].get("fields"))
     cfg.pop("file_urls", None)
     cfg.pop("remove_files", None)
@@ -189,7 +192,10 @@ def delete_campaign(slug):
     shutil.rmtree(d)
     shutil.rmtree(gen.GENERATED / slug, ignore_errors=True)
     for z in gen.GENERATED.glob(f"{slug}*.zip"):
-        z.unlink(missing_ok=True)
+        try:
+            z.unlink(missing_ok=True)
+        except PermissionError:  # Windows: a download may still hold the file open
+            pass
     return jsonify(ok=True)
 
 
@@ -206,6 +212,161 @@ def duplicate_campaign(slug):
     gen.save_config(new, cfg)
     gen.build(new, public_base())
     return jsonify(slug=new)
+
+
+# ---------------------------------------------------------------- visual (drag & drop) editor
+
+def _require(slug, page=None):
+    if not (gen.campaign_dir(slug) / "config.json").exists() or (page and page not in gen.VISUAL_PAGES):
+        abort(404)
+
+
+@app.get("/editor/<slug>")
+@app.get("/editor/<slug>/<page>")
+def visual_editor(slug, page="landing"):
+    _require(slug, page)
+    gen.build(slug, public_base())  # canvas loads the generated style.css, so it must be current
+    cfg = gen.load_config(slug)
+    font = (cfg.get("brand") or {}).get("font") or ""
+    return render_template("editor.html", slug=slug, page=page, name=cfg.get("campaign_name", slug),
+                           google_font=font if font in gen.GOOGLE_FONTS else "")
+
+
+@app.get("/api/campaigns/<slug>/visual/<page>")
+def get_visual(slug, page):
+    _require(slug, page)
+    cfg = gen.load_config(slug)
+    design = gen.load_visual(slug, page)
+    return jsonify(
+        enabled=bool((cfg.get("visual") or {}).get(page)),
+        project=design.get("project") if design else None,
+        custom={k: (design or {}).get(k, "") for k in CUSTOM_CODE_KEYS},
+        form=_form_settings(cfg),
+        meta=_editor_meta(slug),
+        seed=None if design else gen.visual_seed(slug, page, public_base()),
+        blocks=gen.block_previews(slug, public_base()),
+    )
+
+
+@app.post("/api/campaigns/<slug>/visual/<page>")
+def save_visual(slug, page):
+    _require(slug, page)
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data.get("html"), str):
+        return jsonify(error="Missing html"), 400
+    design = {"project": data.get("project"), "html": data["html"], "css": data.get("css", "")}
+    design.update({k: str(data.get(k) or "") for k in CUSTOM_CODE_KEYS})
+    gen.save_visual(slug, page, design)
+    cfg = gen.load_config(slug)
+    cfg.setdefault("visual", {})[page] = True
+    cfg["updated_at"] = datetime.now(timezone.utc).isoformat()
+    gen.save_config(slug, cfg)
+    gen.build(slug, public_base())
+    return jsonify(ok=True)
+
+
+def _editor_meta(slug):
+    _, ctx = gen.build_context(slug, public_base())
+    lp_url = ctx["lp_url"]
+    if not lp_url.startswith("http"):  # no public address yet: link to this portal's hosted copy
+        lp_url = f"{public_base()}/c/{slug}/landing-page/index.html"
+    pdf = ctx["files"].get("pdf")
+    return {"lp_url": lp_url, "primary": ctx["primary"], "btn_text": ctx["btn_text"],
+            "pdf_url": f"/c/{slug}/landing-page/assets/{pdf}" if pdf else ""}
+
+
+CUSTOM_CODE_KEYS = ("custom_css", "custom_mobile_css", "custom_js")
+FORM_KEYS = ("form_title", "form_intro", "submit_text", "consent_text", "consent_type")
+
+
+def _form_settings(cfg):
+    lp = cfg.get("lp") or {}
+    return {"fields": gen.normalise_fields(lp.get("fields")), **{k: lp.get(k, "") for k in FORM_KEYS}}
+
+
+@app.post("/api/campaigns/<slug>/form")
+def save_form(slug):
+    """Lead-form fields and texts, edited from the visual editor."""
+    _require(slug)
+    data = request.get_json(silent=True) or {}
+    cfg = gen.load_config(slug)
+    lp = cfg.setdefault("lp", {})
+    if "fields" in data:
+        lp["fields"] = gen.normalise_fields(data["fields"])
+    for k in FORM_KEYS:
+        if k in data:
+            lp[k] = str(data[k] or "")
+    cfg["updated_at"] = datetime.now(timezone.utc).isoformat()
+    gen.save_config(slug, cfg)
+    gen.build(slug, public_base())
+    return jsonify(ok=True, form=_form_settings(cfg), blocks=gen.block_previews(slug, public_base()))
+
+
+@app.post("/api/campaigns/<slug>/visual/<page>/mode")
+def visual_mode(slug, page):
+    """Switch a page between the visual design and the standard template (the design is kept)."""
+    _require(slug, page)
+    enabled = bool((request.get_json(silent=True) or {}).get("enabled"))
+    if enabled and not gen.load_visual(slug, page):
+        return jsonify(error="Open the visual editor and save a design first."), 400
+    cfg = gen.load_config(slug)
+    cfg.setdefault("visual", {})[page] = enabled
+    gen.save_config(slug, cfg)
+    gen.build(slug, public_base())
+    return jsonify(ok=True, enabled=enabled)
+
+
+@app.delete("/api/campaigns/<slug>/visual/<page>")
+def reset_visual(slug, page):
+    """Discard the visual design; the editor starts again from the standard layout."""
+    _require(slug, page)
+    gen.visual_path(slug, page).unlink(missing_ok=True)
+    cfg = gen.load_config(slug)
+    cfg.setdefault("visual", {})[page] = False
+    gen.save_config(slug, cfg)
+    gen.build(slug, public_base())
+    return jsonify(ok=True)
+
+
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
+
+
+@app.post("/api/campaigns/<slug>/media")
+def upload_media(slug):
+    """Image uploads from the editor's asset manager (GrapesJS response format)."""
+    _require(slug)
+    media = gen.campaign_dir(slug) / "uploads" / "media"
+    media.mkdir(parents=True, exist_ok=True)
+    out = []
+    for f in request.files.getlist("files[]") or request.files.getlist("files"):
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in IMAGE_EXTS:
+            continue
+        name = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(f.filename).stem).strip("-")[:60] or "image"
+        target, n = media / f"{name}{ext}", 2
+        while target.exists():
+            target, n = media / f"{name}-{n}{ext}", n + 1
+        f.save(target)
+        out.append({"src": f"/media/{slug}/{target.name}", "name": target.name})
+    return jsonify(data=out)
+
+
+@app.get("/api/campaigns/<slug>/media")
+def list_media(slug):
+    _require(slug)
+    cfg = gen.load_config(slug)
+    items = [{"src": f"/c/{slug}/landing-page/assets/{n}", "name": n}
+             for role, n in cfg.get("files", {}).items() if role != "pdf"]
+    media = gen.campaign_dir(slug) / "uploads" / "media"
+    if media.is_dir():
+        items += [{"src": f"/media/{slug}/{p.name}", "name": p.name} for p in sorted(media.iterdir())]
+    return jsonify(data=items)
+
+
+@app.get("/media/<slug>/<path:name>")
+def media_file(slug, name):
+    _require(slug)
+    return send_from_directory(gen.campaign_dir(slug) / "uploads" / "media", name)
 
 
 @app.get("/c/<slug>/<path:path>")

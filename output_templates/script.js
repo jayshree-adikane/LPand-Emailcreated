@@ -42,14 +42,21 @@
     return !msg;
   }
 
-  var inputs = form.querySelectorAll('.field input, .field select, .field textarea');
+  var inputs = form.querySelectorAll('.field input, .field select, .field textarea, .consent input[type="checkbox"]');
   inputs.forEach(function (el) {
     el.addEventListener('blur', function () { validate(el); });
     el.addEventListener('change', function () { validate(el); });
   });
 
-  function goToThankYou() {
-    location.href = (cfg.thankYouUrl || 'thank-you.html') + '?submitted=1';
+  function goToThankYou(data) {
+    var params = new URLSearchParams(location.search);
+    params.set('submitted', '1');
+    if (data) {
+      Object.keys(data).forEach(function (key) {
+        params.set(String(key), String(data[key]));
+      });
+    }
+    location.href = (cfg.thankYouUrl || 'thank-you.html') + '?' + params.toString();
   }
 
   form.addEventListener('submit', function (e) {
@@ -67,9 +74,20 @@
       if (key === 'website_hp') return;
       data[key] = data[key] ? data[key] + ', ' + value : value;
     });
+    form.querySelectorAll('[data-field-id]').forEach(function (el) {
+      var fieldId = el.getAttribute('data-field-id');
+      if (el.type === 'radio') {
+        if (el.checked) data[fieldId] = el.value;
+        else if (!Object.prototype.hasOwnProperty.call(data, fieldId)) data[fieldId] = '';
+      } else if (el.type === 'checkbox') {
+        data[fieldId] = el.checked ? el.value : '';
+      } else {
+        data[fieldId] = el.value;
+      }
+    });
     data.page_url = location.href.split('?')[0];
 
-    if (!cfg.formAction) { goToThankYou(); return; }
+    if (!cfg.formAction) { goToThankYou(data); return; }
 
     btn.disabled = true;
     btn.textContent = 'Submitting...';
@@ -80,7 +98,7 @@
     })
       .then(function (r) { return r.json().catch(function () { return { ok: r.ok }; }); })
       .then(function (res) {
-        if (res && res.ok) return goToThankYou();
+        if (res && res.ok) return goToThankYou(data);
         throw new Error((res && res.error) || 'Submission failed.');
       })
       .catch(function (err) {

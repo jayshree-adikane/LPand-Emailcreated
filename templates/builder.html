@@ -18,6 +18,7 @@
   .btn { background:var(--p); color:#fff; border:0; padding:9px 16px; border-radius:7px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; display:inline-block; }
   .btn.light { background:#fff; color:var(--ink); }
   .btn[disabled] { opacity:.6; cursor:wait; }
+  .disabled-link { opacity:.5; pointer-events:none; }
   .menu { position:relative; }
   .menu-list { display:none; position:absolute; right:0; top:110%; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(15,23,42,.18); min-width:210px; z-index:30; padding:4px; }
   .menu.open .menu-list { display:block; }
@@ -43,10 +44,18 @@
 
   /* Rich text editors */
   .ed-label { font-weight:600; font-size:12.5px; color:#334155; margin-bottom:4px; display:block; }
+  .ed-modes { display:flex; gap:0; margin-bottom:6px; }
+  .ed-mode { border:1px solid var(--line); background:#fff; color:#475569; padding:6px 12px; cursor:pointer; font:inherit; font-size:12px; }
+  .ed-mode:first-child { border-radius:5px 0 0 5px; }
+  .ed-mode:last-child { border-radius:0 5px 5px 0; }
+  .ed-mode.active { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .ed-source:not([hidden]) { display:block; width:100%; min-height:200px; max-height:520px; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; tab-size:2; }
+  .ed-wrap.small .ed-source { min-height:70px; }
   .ed-wrap .ql-toolbar.ql-snow { border-radius:6px 6px 0 0; border-color:#cbd5e1; background:#f8fafc; }
   .ed-wrap .ql-container.ql-snow { border-radius:0 0 6px 6px; border-color:#cbd5e1; font-family:inherit; font-size:14px; }
   .ed-wrap .ql-editor { min-height:200px; max-height:520px; overflow:auto; }
   .ed-wrap.small .ql-editor { min-height:70px; }
+  .consent-mode { position:relative; z-index:2; }
   .ql-editor a.lp-btn { display:inline-block; background:var(--brand, #0b5cff); color:#fff; padding:6px 16px; border-radius:5px; text-decoration:none; font-weight:700; }
   .ql-snow .ql-lpbutton { width:auto !important; padding:2px 6px !important; font-weight:700; font-size:12px; }
   .ql-snow .ql-picker.ql-size { width:72px; } .ql-snow .ql-picker.ql-font { width:96px; }
@@ -70,6 +79,7 @@
   .frow .handle { cursor:grab; color:var(--muted); font-size:16px; line-height:32px; text-align:center; user-select:none; }
   .frow input, .frow select { padding:6px 8px; font-size:12.5px; }
   .frow .sub { display:flex; flex-direction:column; gap:4px; }
+  .frow .csscls { margin-top:2px; }
   .frow .req-l { font-size:11px; display:flex; flex-direction:column; align-items:center; color:var(--muted); }
   .icon-btn { border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; padding:5px 8px; font-size:12px; }
 
@@ -84,6 +94,15 @@
   .empty { margin:auto; color:var(--muted); text-align:center; padding:40px; }
   .msg { padding:10px 14px; border-radius:8px; font-size:13px; }
   .msg.err { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
+  .design-card { background:linear-gradient(135deg,#eef4ff,#f5f0ff); border:1px solid #d7e2ff; border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  .design-card .dhead { display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:15px; }
+  .drow { display:grid; grid-template-columns:110px 1fr auto auto; gap:8px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .drow .mode { font-size:12px; color:var(--muted); }
+  .drow .mode b { color:#6d28d9; }
+  .btn-s { font:inherit; font-size:12.5px; padding:6px 10px; border-radius:6px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .btn-s.primary { background:#6d28d9; border-color:#6d28d9; color:#fff; }
+  .btn-s[disabled], .btn-s.disabled { opacity:.5; pointer-events:none; }
+  .design-card .hint2 { font-size:12px; color:var(--muted); margin:0; line-height:1.5; }
   @media (max-width:1050px) { .layout { grid-template-columns:1fr; } .panel { position:static; height:80vh; } }
 </style>
 </head>
@@ -93,6 +112,7 @@
   <h1 id="title">New campaign</h1>
   <span class="save-state" id="saveState"></span>
   <label class="auto" title="Saves and refreshes the preview automatically while you edit"><input type="checkbox" id="autoSave" checked> Auto-save</label>
+  <a class="btn light disabled-link" id="visualBtn" title="Drag & drop page editor (save the campaign first)">🎨 Visual editor</a>
   <button type="button" class="btn" id="genBtn">Save &amp; Generate</button>
   <span class="menu" id="dlMenu">
     <button type="button" class="btn light" id="dlBtn" disabled>Download ▾</button>
@@ -108,6 +128,14 @@
 <div class="layout">
   <form id="builder" autocomplete="off" onsubmit="return false">
     <div id="status"></div>
+
+    <div class="design-card" id="designCard">
+      <div class="dhead">Page design <span style="font-weight:400;font-size:12px;color:#64748b">drag &amp; drop like Elementor</span></div>
+      <div class="drow" data-page="landing"><b>Landing page</b><span class="mode"></span><a class="btn-s primary open">Open visual editor</a><button type="button" class="btn-s toggle"></button></div>
+      <div class="drow" data-page="thankyou"><b>Thank-you page</b><span class="mode"></span><a class="btn-s primary open">Open visual editor</a><button type="button" class="btn-s toggle"></button></div>
+      <div class="drow" data-page="email"><b>Email template</b><span class="mode"></span><a class="btn-s primary open">Open visual editor</a><button type="button" class="btn-s toggle"></button></div>
+      <p class="hint2">A page with a visual design ignores the content fields below for that page. The logos, banner, form fields, footer details and colours set here still update it automatically.</p>
+    </div>
 
     <details class="card" open>
       <summary>1. Campaign &amp; Brand</summary>
@@ -151,8 +179,17 @@
         <label class="f">Partner logo height (px)<input type="number" min="16" max="160" data-k="layout.partner_logo_height" value="44"></label>
         <label class="f">Header padding (px)<input type="number" min="0" max="80" data-k="layout.header_padding" value="14"></label>
         <label class="f">Banner height (px) <small>empty = natural image size</small><input type="number" min="80" max="900" data-k="layout.banner_height" placeholder="auto"></label>
+        <label class="f">Banner image size
+          <select data-k="layout.banner_size"><option value="cover">Cover (fill and crop)</option><option value="contain">Contain (show full image)</option><option value="fill">Stretch to fill</option></select></label>
+        <label class="f">Banner image position
+          <select data-k="layout.banner_position"><option value="center center">Center</option><option value="center top">Top center</option><option value="center bottom">Bottom center</option><option value="left center">Center left</option><option value="right center">Center right</option><option value="left top">Top left</option><option value="right top">Top right</option><option value="left bottom">Bottom left</option><option value="right bottom">Bottom right</option></select></label>
         <label class="f inline full"><input type="checkbox" data-k="layout.sticky"> Fixed (sticky) header that stays at the top while scrolling</label>
         <label class="f inline full"><input type="checkbox" data-k="layout.hero_text"> Show eyebrow, headline &amp; sub-headline on top of the banner <small style="font-weight:400;color:#64748b">(skip if the banner image already has text)</small></label>
+        <label class="f">Banner eyebrow <small>empty = use landing page eyebrow</small><input data-k="layout.banner_eyebrow"></label>
+        <label class="f">Banner headline <small>empty = use landing page headline</small><input data-k="layout.banner_headline"></label>
+        <label class="f full">Banner sub-headline <small>empty = use landing page sub-headline</small><input data-k="layout.banner_subheadline"></label>
+        <label class="f">Banner button text<input data-k="layout.banner_button_text" placeholder="e.g. Download now"></label>
+        <label class="f">Banner button link <small>empty = scroll to form</small><input data-k="layout.banner_button_url" placeholder="#form or https://…"></label>
         <label class="f">Banner text colour<input type="color" data-k="layout.hero_text_color" value="#ffffff"></label>
         <label class="f inline" style="align-self:end;padding-bottom:10px"><input type="checkbox" data-k="layout.hero_shade" checked> Dark shade behind banner text</label>
         <label class="f">Form position
@@ -181,11 +218,24 @@
       <div class="card-body">
         <label class="f">Form title<input data-k="lp.form_title" value="Download the eBook"></label>
         <label class="f">Submit button text<input data-k="lp.submit_text" value="Download Now"></label>
+        <label class="f">Content background<input type="color" data-k="lp.content_bg" value="#ffffff"></label>
+        <label class="f">Form background<input type="color" data-k="lp.form_bg" value="#ffffff"></label>
+        <label class="f">Form border colour<input type="color" data-k="lp.form_border_color" value="#e2e8f0"></label>
+        <label class="f">Form border width (px)<input type="number" min="0" max="12" data-k="lp.form_border_width" value="1"></label>
+        <label class="f">Form corner radius (px)<input type="number" min="0" max="40" data-k="lp.form_border_radius" value="10"></label>
         <label class="f full">Form intro text<input data-k="lp.form_intro" placeholder="Fill in the form to get instant access."></label>
-        <p class="hint">Drag <b>⋮⋮</b> to reorder fields. Use <b>half</b> width to put two fields side by side.</p>
+        <p class="hint">Drag <b>⋮⋮</b> to reorder fields. Use <b>half</b> width to put two fields side by side. You can use HTML in field labels and add your own CSS classes for styling.</p>
         <div id="fieldRows"></div>
         <div class="full"><button type="button" class="icon-btn" id="addField">+ Add field</button></div>
         <div class="full ed-wrap small"><span class="ed-label">Consent / privacy text (under the form)</span><div data-ed="lp.consent_text" data-mini="1"></div></div>
+        <label class="f full consent-mode">Consent display mode
+          <select data-k="lp.consent_type">
+            <option value="checkbox">Checkbox + text</option>
+            <option value="text">Plain text</option>
+          </select>
+        </label>
+        <label class="f full">Manual CSS <small>extra CSS for the landing page</small><textarea data-k="lp.manual_css" placeholder=".my-class { border: 2px solid #0b5cff; }"></textarea></label>
+        <label class="f full">Manual JS <small>extra JavaScript for the landing page</small><textarea data-k="lp.manual_js" placeholder="document.addEventListener('DOMContentLoaded', function(){ ... });"></textarea></label>
         <label class="f full">Custom form action URL <small>leave empty to send leads to this server</small><input data-k="lp.form_action" placeholder="https://…"></label>
       </div>
     </details>
@@ -196,6 +246,8 @@
         <label class="f full">Heading<input data-k="ty.heading" value="Thank you!"></label>
         <div class="full ed-wrap small"><span class="ed-label">Message</span><div data-ed="ty.body"></div></div>
         <label class="f full">Download button text<input data-k="ty.download_text" value="Download the PDF"></label>
+        <label class="f full">Manual CSS <small>extra CSS for the thank-you page</small><textarea data-k="ty.manual_css" placeholder=".ty-card { border-radius: 20px; }"></textarea></label>
+        <label class="f full">Manual JS <small>extra JavaScript for the thank-you page</small><textarea data-k="ty.manual_js" placeholder="document.addEventListener('DOMContentLoaded', function(){ ... });"></textarea></label>
         <p class="hint">The PDF downloads automatically when the thank-you page opens after the form is submitted. The button is there to download it again.</p>
       </div>
     </details>
@@ -221,6 +273,16 @@
       <div class="card-body">
         <label class="f">Footer background colour<input type="color" data-k="brand.footer_bg" value="#0f172a"></label>
         <label class="f">Footer text colour<input type="color" data-k="brand.footer_text_color" value="#cbd5e1"></label>
+        <label class="f">Footer layout columns
+          <select data-k="layout.footer_columns">
+            <option value="1">1 box</option>
+            <option value="2">2 boxes</option>
+            <option value="3" selected>3 boxes</option>
+            <option value="4">4 boxes</option>
+            <option value="5">5 boxes</option>
+            <option value="6">6 boxes</option>
+          </select>
+        </label>
         <label class="f">Company name<input data-k="company.name"></label>
         <label class="f">Website<input data-k="company.website" placeholder="https://"></label>
         <label class="f full">Address<textarea data-k="company.address"></textarea></label>
@@ -337,10 +399,39 @@ $$('[data-ed]').forEach(el => {
     theme: 'snow',
     modules: { toolbar: { container: el.dataset.mini ? MINI_TOOLBAR : FULL_TOOLBAR, handlers: { lpbutton: buttonHandler } } },
   });
+  const wrap = el.closest('.ed-wrap');
+  const modes = document.createElement('div');
+  modes.className = 'ed-modes';
+  modes.innerHTML = '<button type="button" class="ed-mode active" data-mode="visual">Visual</button><button type="button" class="ed-mode" data-mode="text">Text</button>';
+  const source = document.createElement('textarea');
+  source.className = 'ed-source';
+  source.hidden = true;
+  source.setAttribute('aria-label', 'HTML source');
+  source.spellcheck = false;
+  wrap.insertBefore(modes, wrap.querySelector('.ql-toolbar'));
+  wrap.appendChild(source);
+  function setMode(mode) {
+    const textMode = mode === 'text';
+    if (textMode) source.value = q.root.innerHTML;
+    else if (!source.hidden) q.setContents(q.clipboard.convert(source.value), 'silent');
+    source.hidden = !textMode;
+    wrap.querySelector('.ql-toolbar').hidden = textMode;
+    wrap.querySelector('.ql-container').hidden = textMode;
+    modes.querySelectorAll('.ed-mode').forEach(button => {
+      const active = button.dataset.mode === mode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+  modes.addEventListener('click', event => {
+    const button = event.target.closest('.ed-mode');
+    if (button) setMode(button.dataset.mode);
+  });
+  source.addEventListener('input', () => changed());
   const tb = q.getModule('toolbar').container.querySelector('.ql-lpbutton');
   if (tb) { tb.textContent = 'Button'; tb.title = 'Make the selected text a button'; }
   q.on('text-change', (d, o, source) => { if (source === 'user') changed(); });
-  editors[el.dataset.ed] = q;
+  editors[el.dataset.ed] = {q, source};
 });
 
 const escapeHtml = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -359,7 +450,10 @@ function setEditor(q, value) {
   // convert() + setContents avoids dangerouslyPasteHTML's focus/scroll side effects.
   q.setContents(q.clipboard.convert(value), 'silent');
 }
-const editorHtml = q => { const h = q.root.innerHTML; return (h === '<p><br></p>' || !q.getText().trim() && !h.includes('<img')) ? '' : h; };
+const editorHtml = ({q, source}) => {
+  const h = source.hidden ? q.root.innerHTML : source.value;
+  return (h === '<p><br></p>' || !h.replace(/<[^>]*>/g, '').trim() && !h.includes('<img')) ? '' : h;
+};
 
 /* ---------------- Form fields with drag & drop ---------------- */
 let dragRow = null;
@@ -368,16 +462,18 @@ function fieldRow(f = {label:'', type:'text', width:'full', required:false}) {
   r.className = 'frow';
   r.innerHTML = `
     <span class="handle" title="Drag to reorder">⋮⋮</span>
-    <div class="sub"><input class="lbl" placeholder="Field label"><input class="opts" placeholder="Options, comma separated"><input class="ph" placeholder="Placeholder (or value for hidden fields)"></div>
+    <div class="sub"><input class="lbl" placeholder="Field label (HTML allowed, e.g. I agree to <a href='#'>Privacy Policy</a>)"><input class="fid" placeholder="HTML id (use as [id] on thank-you page)"><input class="opts" placeholder="Options, comma separated"><input class="ph" placeholder="Placeholder (or value for hidden fields)"><input class="csscls" placeholder="CSS class (optional)"></div>
     <select class="type">${FIELD_TYPES.map(t => `<option>${t}</option>`).join('')}</select>
     <select class="width"><option value="full">full</option><option value="half">half</option></select>
     <label class="req-l">Req<input type="checkbox" class="req"></label>
     <button type="button" class="icon-btn del" title="Remove">✕</button>`;
   r.querySelector('.lbl').value = f.label || '';
+  r.querySelector('.fid').value = f.id || '';
   r.querySelector('.type').value = f.type || 'text';
   r.querySelector('.width').value = f.width || 'full';
   r.querySelector('.req').checked = !!f.required;
   r.querySelector('.ph').value = f.placeholder || '';
+  r.querySelector('.csscls').value = f.css_class || '';
   const opts = r.querySelector('.opts');
   opts.value = (f.options || []).join(', ');
   const sync = () => { opts.style.display = ['select', 'radio'].includes(r.querySelector('.type').value) ? '' : 'none'; };
@@ -453,25 +549,57 @@ const getPath = (obj, path) => path.split('.').reduce((o, k) => o == null ? unde
 function collect() {
   const cfg = {file_urls: {}, remove_files: {...removeFiles}, slug};
   $$('[data-k]').forEach(el => setPath(cfg, el.dataset.k, el.type === 'checkbox' ? el.checked : el.value.trim()));
-  Object.entries(editors).forEach(([k, q]) => setPath(cfg, k, editorHtml(q)));
+  Object.entries(editors).forEach(([k, editor]) => setPath(cfg, k, editorHtml(editor)));
   cfg.lp.fields = [...rows.children].map(r => ({
-    label: r.querySelector('.lbl').value.trim(), type: r.querySelector('.type').value,
+    label: r.querySelector('.lbl').value.trim(), id: r.querySelector('.fid').value.trim(), type: r.querySelector('.type').value,
     width: r.querySelector('.width').value, required: r.querySelector('.req').checked,
     placeholder: r.querySelector('.ph').value.trim(),
     options: r.querySelector('.opts').value.split(',').map(s => s.trim()).filter(Boolean),
+    css_class: r.querySelector('.csscls').value.trim(),
   })).filter(f => f.label);
   $$('.file-box').forEach(b => cfg.file_urls[b.dataset.role] = b.querySelector('input[type=url]').value.trim());
   return cfg;
 }
 
+/* ---------------- Visual editor status ---------------- */
+let designState = { visual: {}, visual_saved: {} };
+function renderDesign() {
+  $('#visualBtn').classList.toggle('disabled-link', !slug);
+  if (slug) $('#visualBtn').href = `/editor/${slug}/landing`;
+  $$('.drow').forEach(r => {
+    const page = r.dataset.page, on = !!designState.visual[page], saved = !!designState.visual_saved[page];
+    r.querySelector('.mode').innerHTML = !slug ? 'Save the campaign first'
+      : on ? 'Using its <b>visual design</b>' : saved ? 'Using the standard template (visual design saved)' : 'Using the standard template';
+    const open = r.querySelector('.open');
+    open.classList.toggle('disabled', !slug);
+    if (slug) open.href = `/editor/${slug}/${page}`;
+    const t = r.querySelector('.toggle');
+    t.textContent = on ? 'Use standard template' : 'Use visual design';
+    t.disabled = !slug || (!on && !saved);
+    t.onclick = async () => {
+      const res = await fetch(`/api/campaigns/${slug}/visual/${page}/mode`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !on }) });
+      const d = await res.json();
+      if (!res.ok) { status(d.error || 'Failed'); return; }
+      designState.visual[page] = d.enabled;
+      renderDesign(); showPreview();
+    };
+  });
+}
+
 function populate(cfg) {
+  designState = { visual: cfg.visual || {}, visual_saved: cfg.visual_saved || {} };
+  renderDesign();
   loading = true;
   $$('[data-k]').forEach(el => {
     const v = getPath(cfg, el.dataset.k);
     if (v === undefined) return;
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
   });
-  Object.entries(editors).forEach(([k, q]) => setEditor(q, getPath(cfg, k)));
+  Object.entries(editors).forEach(([k, editor]) => {
+    setEditor(editor.q, getPath(cfg, k));
+    editor.source.value = editor.q.root.innerHTML;
+  });
   rows.innerHTML = '';
   (cfg.lp?.fields?.length ? cfg.lp.fields : DEFAULT_FIELDS).forEach(fieldRow);
   showFiles(cfg.files || {});
@@ -515,7 +643,7 @@ async function save() {
     if (!res.ok) throw new Error(data.error || 'Save failed');
     const isFirst = !slug;
     slug = data.slug;
-    if (isFirst) history.replaceState(null, '', '/builder/' + slug);
+    if (isFirst) { history.replaceState(null, '', '/builder/' + slug); renderDesign(); }
     Object.keys(removeFiles).forEach(k => delete removeFiles[k]);
     if ($$('.file-box input[type=file]').some(i => i.files.length) || $$('.file-box input[type=url]').some(i => i.value) || Object.keys(cfg.remove_files).length)
       showFiles(data.files);

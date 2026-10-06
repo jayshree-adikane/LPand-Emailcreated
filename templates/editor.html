@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visual Editor · {{ name }}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/grapesjs@0.22.16/dist/css/grapes.min.css">
+<style>
+  :root {
+    --gjs-primary-color:#1f2430; --gjs-secondary-color:#d6dae3; --gjs-tertiary-color:#4f8cff; --gjs-quaternary-color:#7aa7ff;
+    --side:#1f2430; --side2:#272d3b; --line:#353c4d; --txt:#d6dae3; --muted:#8b93a7; --accent:#4f8cff;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:'Segoe UI',Roboto,Arial,sans-serif; font-size:13px; background:#e9ecf2; }
+  #top { height:52px; background:#11151d; color:#fff; display:flex; align-items:center; gap:8px; padding:0 12px; }
+  #top a, #top button { font:inherit; }
+  #top .back { color:#aab2c5; text-decoration:none; white-space:nowrap; }
+  #top .name { font-weight:700; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .seg { display:flex; background:#1f2430; border-radius:7px; padding:3px; }
+  .seg a, .seg button { color:#c4cad8; text-decoration:none; padding:5px 10px; border-radius:5px; border:0; background:none; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  .seg a.active, .seg button.active { background:var(--accent); color:#fff; }
+  .seg svg { width:16px; height:16px; }
+  .tb { background:#1f2430; color:#d6dae3; border:0; border-radius:6px; padding:7px 9px; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap; text-decoration:none; }
+  .tb:hover { background:#2b3242; }
+  .tb.on { background:#2d3b57; color:#9cc0ff; }
+  .tb.add { background:#16a34a; color:#fff; font-weight:700; }
+  .tb.add:hover { background:#15803d; }
+  .tb svg { width:16px; height:16px; }
+  .spacer { flex:1; }
+  #state { font-size:12px; color:#8b93a7; white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  #state.dirty { color:#fbbf24; } #state.ok { color:#4ade80; } #state.err { color:#f87171; }
+  .save { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:8px 16px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .save[disabled] { opacity:.6; cursor:wait; }
+  #notice { background:#fff7e0; color:#7a5b00; border-bottom:1px solid #f1dfa6; height:33px; padding:0 14px; font-size:12.5px; display:none; align-items:center; gap:10px; }
+  #notice.live { background:#e9f8ef; color:#17663a; border-color:#bfe8cf; }
+  #notice button { font:inherit; font-size:12px; background:#fff; border:1px solid currentColor; color:inherit; border-radius:5px; padding:3px 8px; cursor:pointer; }
+
+  #wrap { display:flex; height:calc(100% - 52px); }
+  body.has-notice #wrap { height:calc(100% - 52px - 33px); }
+  #side { width:310px; flex:none; background:var(--side); color:var(--txt); display:flex; flex-direction:column; border-right:1px solid #0c0f15; }
+  #tabs { display:grid; grid-template-columns:repeat(4, 1fr); border-bottom:1px solid var(--line); }
+  #tabs button { background:none; border:0; color:var(--muted); padding:11px 4px 9px; cursor:pointer; font:inherit; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px; border-bottom:2px solid transparent; }
+  #tabs button svg { width:18px; height:18px; }
+  #tabs button.active { color:#fff; border-bottom-color:var(--accent); }
+  .pane { flex:1; overflow:auto; display:none; }
+  .pane.active { display:block; }
+  .pane-empty { color:var(--muted); padding:24px 18px; line-height:1.6; }
+  #search { margin:10px; width:calc(100% - 20px); padding:8px 10px; border-radius:6px; border:1px solid var(--line); background:var(--side2); color:#fff; font:inherit; }
+  .vis-card { margin:10px; padding:10px; border-radius:8px; background:var(--side2); border:1px solid var(--line); display:none; }
+  .vis-title { font-size:12px; font-weight:600; color:#fff; margin-bottom:8px; display:flex; justify-content:space-between; }
+  .vis-btns { display:grid; grid-template-columns:repeat(var(--n,3), 1fr); gap:6px; }
+  .vis-btns button { font:inherit; font-size:11.5px; background:#1d4ed8; color:#fff; border:1px solid #2563eb; border-radius:6px; padding:7px 4px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .vis-btns button svg { width:18px; height:18px; }
+  .vis-btns button.off { background:transparent; color:var(--muted); border:1px dashed var(--line); text-decoration:line-through; }
+  .vis-presets { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .vis-presets button { font:inherit; font-size:11px; background:none; color:#9cc0ff; border:1px solid var(--line); border-radius:12px; padding:3px 9px; cursor:pointer; }
+  .vis-presets button:hover { border-color:var(--accent); color:#fff; }
+  .vis-summary { font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .vis-summary.warn { color:#fbbf24; }
+  #devnote { margin:10px; padding:8px 10px; border-radius:6px; background:#2d3b57; color:#cfe0ff; font-size:12px; line-height:1.45; display:none; }
+  #devnote.mobile { background:#3b2d57; color:#e4d4ff; }
+  .pane-actions { padding:10px; display:none; flex-direction:column; gap:8px; border-bottom:1px solid var(--line); }
+  .pane-actions button { font:inherit; background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px; cursor:pointer; font-weight:600; }
+  #canvas-wrap { flex:1; min-width:0; position:relative; }
+  #gjs { position:absolute; inset:0; }
+  #addSection { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:5; background:#16a34a; color:#fff; border:0; border-radius:22px; padding:10px 18px; font:inherit; font-weight:700; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25); display:flex; align-items:center; gap:6px; }
+  #addSection:hover { background:#15803d; }
+
+  /* GrapesJS panels inside our sidebar */
+  .gjs-block-category .gjs-title { background:var(--side2); border-bottom:1px solid var(--line); font-weight:600; letter-spacing:.02em; padding:10px 12px; }
+  .gjs-blocks-c { display:grid !important; grid-template-columns:repeat(3, 1fr); gap:6px; padding:8px; }
+  .gjs-block { width:auto !important; min-height:78px !important; margin:0 !important; padding:10px 4px !important; border-radius:7px !important; border:1px solid var(--line) !important; background:var(--side2); color:var(--txt); box-shadow:none !important; display:flex !important; flex-direction:column; justify-content:center; align-items:center; gap:6px; transition:border-color .15s, background .15s; }
+  .gjs-block:hover { border-color:var(--accent) !important; background:#2d3446; color:#fff; }
+  .gjs-block svg, .add-tile svg { width:28px; height:28px; fill:none; stroke:currentColor; stroke-width:1.6; }
+  .gjs-block-label { font-size:11.5px; line-height:1.2; text-align:center; }
+  .gjs-block.live { border-style:dashed !important; }
+  .gjs-sm-sector-title, .gjs-layer-title, .gjs-trt-header { background:var(--side2) !important; }
+  .gjs-sm-sector .gjs-sm-properties { padding:8px 10px; }
+  .gjs-clm-tags { padding:10px; }
+  .gjs-field { background:var(--side2); }
+  .gjs-sm-label, .gjs-label { color:var(--txt); }
+  .gjs-one-bg { background-color:var(--side); }
+  .gjs-two-color { color:var(--txt); }
+  .gjs-four-color, .gjs-four-color-h:hover { color:var(--accent); }
+  .gjs-trt-traits { padding:8px; }
+  .gjs-field-colorp { cursor:pointer; }
+  .gjs-field-colorp-c { width:26px !important; height:100%; cursor:pointer; }
+  .sp-container { z-index:100000 !important; }
+  /* Colour fields: native picker over the swatch + quick palette */
+  #lpNativeColor { position:fixed; width:2px; height:2px; opacity:0; border:0; padding:0; pointer-events:none; }
+  .sp-container { display:none !important; } /* GrapesJS's own picker is replaced by the browser's colour chooser */
+  .lp-palette { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0 2px; width:100%; flex-basis:100%; }
+  .lp-palette button { width:18px; height:18px; border-radius:4px; border:1px solid #4b5468; cursor:pointer; padding:0; }
+  .lp-palette button:hover { transform:scale(1.15); border-color:#fff; }
+  .lp-palette button.clear { background:linear-gradient(135deg, #fff 45%, #ef4444 45%, #ef4444 55%, #fff 55%) !important; }
+
+  /* Breadcrumb of the selected element */
+  #crumbs { padding:7px 10px; border-bottom:1px solid var(--line); font-size:11.5px; color:var(--muted); display:none; flex-wrap:wrap; gap:2px; align-items:center; }
+  #crumbs button { font:inherit; background:none; border:0; color:#9cc0ff; cursor:pointer; padding:2px 3px; border-radius:4px; }
+  #crumbs button:hover { background:#2d3446; color:#fff; }
+  #crumbs b { color:#fff; padding:2px 3px; }
+
+  /* Advanced tab cards */
+  .adv-card { margin:10px; padding:11px; border-radius:8px; background:var(--side2); border:1px solid var(--line); display:none; }
+  .adv-card h5 { margin:0 0 8px; font-size:12.5px; color:#fff; display:flex; flex-direction:column; gap:2px; }
+  .adv-card h5 small { font-weight:400; color:var(--muted); font-size:11px; }
+  .adv-card input[type=text], .adv-card select { font:inherit; width:100%; background:#1b202b; color:#fff; border:1px solid var(--line); border-radius:6px; padding:7px 9px; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+  .chips button { font:inherit; font-size:11.5px; background:none; color:#9cc0ff; border:1px solid var(--line); border-radius:12px; padding:3px 9px; cursor:pointer; }
+  .chips button:hover { border-color:var(--accent); color:#fff; }
+  .chips button[disabled] { opacity:.4; cursor:not-allowed; }
+  .adv-card .chk { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; color:var(--txt); }
+  .opt-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; }
+  .opt-grid button { font:inherit; font-size:11.5px; background:#1b202b; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:7px 4px; cursor:pointer; }
+  .opt-grid button:hover { border-color:var(--accent); }
+  .opt-grid button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .row2 label { font-size:11.5px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+  .adv-card .play { margin-top:8px; width:100%; font:inherit; background:#16a34a; color:#fff; border:0; border-radius:6px; padding:7px; cursor:pointer; font-weight:600; }
+  .adv-note { margin:10px; font-size:11.5px; color:var(--muted); line-height:1.5; display:none; }
+  .adv-sub { margin:14px 10px 0; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); display:none; }
+
+  /* Help */
+  .help-steps { margin:0; padding-left:20px; line-height:1.7; }
+  .help-steps b { color:#fff; }
+  .keys { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin-top:6px; }
+  kbd { background:#1b202b; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:1px 6px; font-size:11.5px; color:#fff; font-family:inherit; }
+  .side-hint { font-size:11.5px; color:var(--muted); padding:10px 12px; line-height:1.5; border-top:1px solid var(--line); }
+  .side-hint b { color:#c4cad8; }
+
+  /* Modals */
+  .gjs-mdl-dialog { max-width:900px; border-radius:10px; overflow:hidden; }
+  .lp-modal { color:var(--txt); font-size:13px; }
+  .lp-modal h4 { margin:16px 0 8px; color:#fff; font-size:13px; text-transform:uppercase; letter-spacing:.05em; }
+  .lp-modal h4:first-child { margin-top:0; }
+  .add-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; }
+  .add-tile { background:var(--side2); border:1px solid var(--line); border-radius:8px; color:var(--txt); padding:12px 6px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; font:inherit; font-size:12px; }
+  .add-tile:hover { border-color:var(--accent); color:#fff; background:#2d3446; }
+  .add-tile.live { border-style:dashed; }
+  .add-where { color:var(--muted); margin:0 0 12px; }
+  .lp-modal label.f { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .lp-modal input, .lp-modal select, .lp-modal textarea { font:inherit; background:var(--side2); color:#fff; border:1px solid var(--line); border-radius:6px; padding:7px 9px; width:100%; }
+  .lp-modal textarea { min-height:70px; resize:vertical; }
+  .lp-modal textarea.code { font-family:Consolas, 'Courier New', monospace; font-size:12px; min-height:150px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .frow { display:grid; grid-template-columns:20px 1.6fr 110px 80px 50px 28px; gap:6px; align-items:start; background:var(--side2); border:1px solid var(--line); border-radius:8px; padding:7px; margin-bottom:6px; }
+  .frow.dragging { opacity:.4; }
+  .frow .handle { cursor:grab; color:var(--muted); text-align:center; line-height:30px; user-select:none; }
+  .frow .sub { display:flex; flex-direction:column; gap:4px; }
+  .frow .req { display:flex; flex-direction:column; align-items:center; font-size:11px; color:var(--muted); }
+  .frow input[type=checkbox] { width:auto; }
+  .frow .del { background:none; border:0; color:#f87171; cursor:pointer; font-size:15px; line-height:30px; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  .modal-actions button { font:inherit; border-radius:6px; padding:8px 16px; cursor:pointer; border:1px solid var(--line); background:var(--side2); color:var(--txt); }
+  .modal-actions button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
+  .lp-modal .muted { color:var(--muted); font-size:12px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="top">
+  <a class="back" href="/builder/{{ slug }}" title="Back to the campaign builder">&larr; Builder</a>
+  <span class="name" title="{{ name }}">{{ name }}</span>
+  <div class="seg">
+    <a href="/editor/{{ slug }}/landing" class="{{ 'active' if page == 'landing' }}">Landing</a>
+    <a href="/editor/{{ slug }}/thankyou" class="{{ 'active' if page == 'thankyou' }}">Thank-you</a>
+    <a href="/editor/{{ slug }}/email" class="{{ 'active' if page == 'email' }}">Email</a>
+  </div>
+  <div class="seg" id="devices">
+    <button data-device="desktop" class="active" title="Desktop view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/></svg></button>
+    <button data-device="tablet" title="Tablet view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M11 18h2"/></svg></button>
+    <button data-device="mobile" title="Mobile view: styles you set here apply to phones only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg></button>
+  </div>
+  <button class="tb add" id="addBtn" title="Add an element (after the selected one, or at the end of the page)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+  <button class="tb" id="undo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg></button>
+  <button class="tb" id="redo" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 000 10h3"/></svg></button>
+  <button class="tb on" id="outline" title="Show element outlines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2"><rect x="3" y="3" width="18" height="18" rx="1"/></svg></button>
+  <button class="tb" id="preview" title="Preview inside the editor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <button class="tb" id="formBtn" title="Edit the lead form fields"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Form</button>
+  <button class="tb" id="codeBtn" title="Custom CSS, mobile CSS and JavaScript"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg>Code</button>
+  <button class="tb" id="reset" title="Discard this design and start again from the standard layout">Reset</button>
+  <button class="tb" id="helpBtn" title="How to use the editor">?</button>
+  <span class="spacer"></span>
+  <span id="state">Loading…</span>
+  <a class="tb" id="open" href="#" target="_blank" title="Open the published page in a new tab">Open ↗</a>
+  <button class="save" id="save" title="Save (Ctrl+S)">Save &amp; Publish</button>
+</div>
+<div id="notice"></div>
+
+<div id="wrap">
+  <aside id="side">
+    <div id="tabs">
+      <button data-pane="blocks" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Widgets</button>
+      <button data-pane="style"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 004-4c0-4.7-4-8.5-9-8.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>Style</button>
+      <button data-pane="traits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Advanced</button>
+      <button data-pane="layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l10 5-10 5L2 7l10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Layers</button>
+    </div>
+    <div id="crumbs"></div>
+    <div class="pane active" id="pane-blocks">
+      <input id="search" placeholder="Search widgets…">
+      <div id="blocks"></div>
+      <div class="side-hint">Drag a widget onto the page, or select an element and click its <b>+</b> button. <b>Dashed</b> widgets are live: they always show the logos, banner, form and footer from the campaign.</div>
+    </div>
+    <div class="pane" id="pane-style">
+      <div class="vis-card" id="visCard">
+        <div class="vis-title">Show this element on <span style="font-weight:400;color:#8b93a7">click to hide / show</span></div>
+        <div class="vis-btns">
+          <button type="button" data-cls="lp-hide-desktop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/></svg>Desktop</button>
+          <button type="button" data-cls="lp-hide-tablet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M11 18h2"/></svg>Tablet</button>
+          <button type="button" data-cls="lp-hide-mobile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>Mobile</button>
+        </div>
+        <div class="vis-presets">
+          <button type="button" data-preset="all">All devices</button>
+          <button type="button" data-preset="desktop">Desktop only</button>
+          <button type="button" data-preset="mobile">Mobile only</button>
+        </div>
+        <div class="vis-summary" id="visSummary"></div>
+      </div>
+      <div id="devnote"></div>
+      <div class="pane-empty" id="style-empty">Select an element on the page to style it: spacing, alignment, size, typography, colours, background, border and more.</div>
+      <div id="styles"></div>
+    </div>
+    <div class="pane" id="pane-traits">
+      <div class="pane-actions" id="formActions"><button type="button" id="formBtn2">Edit form fields &amp; texts</button></div>
+      <div class="pane-empty" id="traits-empty">Select an element to add a link, an animation or a hover effect.</div>
+      <section class="adv-card" id="linkCard">
+        <h5>Link <small>Make this element clickable: a box, section, image, text or button.</small></h5>
+        <input type="text" id="lnkUrl" placeholder="https://…  or  #form">
+        <div class="chips">
+          <button type="button" data-link="#form">Scroll to form</button>
+          <button type="button" data-link="pdf" id="lnkPdf">Open the PDF</button>
+          <button type="button" data-link="lp" id="lnkLp">Landing page</button>
+          <button type="button" data-link="">Remove link</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="lnkNew"> Open in a new tab</label>
+      </section>
+      <section class="adv-card" id="animCard">
+        <h5>Entrance animation <small>Plays once when the element scrolls into view.</small></h5>
+        <div class="opt-grid" id="animGrid"></div>
+        <div class="row2">
+          <label>Speed<select id="animSpeed"><option value="fast">Fast</option><option value="">Normal</option><option value="slow">Slow</option></select></label>
+          <label>Delay<select id="animDelay"><option value="">None</option><option value="200">0.2 s</option><option value="400">0.4 s</option><option value="600">0.6 s</option><option value="1000">1 s</option></select></label>
+        </div>
+        <button type="button" class="play" id="animPlay">▶ Preview animation</button>
+      </section>
+      <section class="adv-card" id="hoverCard">
+        <h5>Hover effect <small>When the mouse moves over the element. Try it in the canvas.</small></h5>
+        <div class="opt-grid" id="hoverGrid"></div>
+      </section>
+      <p class="adv-note" id="emailFxNote">Email apps don't support animations or hover effects, so only links are available in the email editor.</p>
+      <h5 class="adv-sub" id="detailsTitle">Element details</h5>
+      <div id="traits"></div>
+    </div>
+    <div class="pane" id="pane-layers"><div id="layers"></div></div>
+  </aside>
+  <div id="canvas-wrap">
+    <div id="gjs"></div>
+    <button id="addSection" title="Add a new section at the end of the page"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg>Add section</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/grapesjs@0.22.16/dist/grapes.min.js"></script>
+<script>
+const SLUG = "{{ slug }}", PAGE = "{{ page }}";
+const IS_EMAIL = PAGE === 'email';
+const PAGE_URL = `/c/${SLUG}/` + (IS_EMAIL ? 'email-template/email.html' : `landing-page/${PAGE === 'landing' ? 'index.html' : 'thank-you.html'}`);
+const MOBILE_MAX = IS_EMAIL ? 620 : 767;
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+let editor, BLOCKS = {}, META = {}, FORM = {}, CUSTOM = {}, dirty = false, saving = false, enabled = false;
+
+const LIVE_LABELS = {
+  header: 'Site header (logos)', banner: 'Banner', 'banner-slim': 'Banner strip', footer: 'Footer',
+  form: 'Lead form', download: 'PDF download button',
+  'email-header': 'Email header (logos)', 'email-banner': 'Email banner', 'email-content': 'Email text from builder',
+  'email-cta': 'Email CTA button', 'email-signoff': 'Sign-off', 'email-footer': 'Email footer + unsubscribe',
+};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------------- Icons ---------------- */
+const icon = d => `<svg viewBox="0 0 24 24">${d}</svg>`;
+const I = {
+  section: icon('<rect x="3" y="5" width="18" height="14" rx="1"/>'),
+  col1: icon('<rect x="4" y="5" width="16" height="14" rx="1"/>'),
+  col2: icon('<rect x="3" y="5" width="8" height="14" rx="1"/><rect x="13" y="5" width="8" height="14" rx="1"/>'),
+  col3: icon('<rect x="2" y="5" width="6" height="14" rx="1"/><rect x="9" y="5" width="6" height="14" rx="1"/><rect x="16" y="5" width="6" height="14" rx="1"/>'),
+  col4: icon('<rect x="2" y="5" width="4" height="14" rx="1"/><rect x="7.3" y="5" width="4" height="14" rx="1"/><rect x="12.6" y="5" width="4" height="14" rx="1"/><rect x="18" y="5" width="4" height="14" rx="1"/>'),
+  col37: icon('<rect x="3" y="5" width="5" height="14" rx="1"/><rect x="10" y="5" width="11" height="14" rx="1"/>'),
+  col73: icon('<rect x="3" y="5" width="11" height="14" rx="1"/><rect x="16" y="5" width="5" height="14" rx="1"/>'),
+  box: icon('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/>'),
+  spacer: icon('<path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/>'),
+  divider: icon('<path d="M3 12h18"/>'),
+  heading: icon('<path d="M6 4v16M18 4v16M6 12h12"/>'),
+  text: icon('<path d="M4 6h16M4 10h16M4 14h16M4 18h10"/>'),
+  button: icon('<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M8 12h8"/>'),
+  image: icon('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/>'),
+  video: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>'),
+  list: icon('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
+  check: icon('<path d="M4 7l2 2 4-4M13 7h7M4 15l2 2 4-4M13 15h7"/>'),
+  quote: icon('<path d="M7 11H4V7h4v4l-2 6M17 11h-3V7h4v4l-2 6"/>'),
+  link: icon('<path d="M10 14a4 4 0 005.6 0l3-3a4 4 0 00-5.6-5.6l-1 1M14 10a4 4 0 00-5.6 0l-3 3a4 4 0 005.6 5.6l1-1"/>'),
+  hero: icon('<rect x="2" y="4" width="20" height="16" rx="1"/><path d="M6 10h8M6 13h5M6 16h4"/>'),
+  imgtext: icon('<rect x="3" y="5" width="8" height="14" rx="1"/><path d="M14 8h7M14 12h7M14 16h4"/>'),
+  card: icon('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M7 15h10M9 18h6"/>'),
+  header: icon('<rect x="2" y="4" width="20" height="5" rx="1"/><path d="M2 13h20M2 17h14"/>'),
+  banner: icon('<rect x="2" y="5" width="20" height="10" rx="1"/><path d="M5 12l4-3 3 2 3-2 4 3"/>'),
+  form: icon('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
+  footer: icon('<path d="M2 7h20M2 11h20"/><rect x="2" y="15" width="20" height="5" rx="1"/>'),
+  download: icon('<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/>'),
+  plus: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>',
+};
+
+/* ---------------- Widgets: web pages ---------------- */
+const section = (inner, pad = '60px') => `<section class="lp-section" style="padding:${pad} 0;"><div class="container">${inner}</div></section>`;
+const col = (w, inner = '<p>Add content to this column.</p>') =>
+  `<div class="lp-col"${w ? ` style="flex:0 0 calc(${w}% - 12px);"` : ''}>${inner}</div>`;
+const row = cols => section(`<div class="lp-row">${cols}</div>`, '40px');
+const imgSrc = key => ((BLOCKS[key] || '').match(/<img[^>]+src="([^"]+)"/) || [])[1] || '';
+
+function webBlocks(add) {
+  add('section', 'Section', 'Layout', section('<h2>Section heading</h2><p>Write something here. Double-click any text to edit it.</p>'));
+  add('col1', '1 Column', 'Layout', row(col()));
+  add('col2', '2 Columns', 'Layout', row(col() + col()));
+  add('col3', '3 Columns', 'Layout', row(col() + col() + col()));
+  add('col4', '4 Columns', 'Layout', row(col() + col() + col() + col()));
+  add('col37', '30 / 70', 'Layout', row(col(30) + col(70)));
+  add('col73', '70 / 30', 'Layout', row(col(70) + col(30)));
+  add('box', 'Box', 'Layout', '<div class="lp-box"><h3>Box title</h3><p>Box text goes here.</p></div>');
+  add('spacer', 'Spacer', 'Layout', '<div class="lp-spacer"></div>');
+  add('divider', 'Divider', 'Layout', '<hr class="lp-divider">');
+
+  add('heading', 'Heading', 'Basic', '<h2>Your heading</h2>');
+  add('text', 'Text', 'Basic', '<p>Write your text here. Double-click to edit, and use the Style tab for font, size and colour.</p>');
+  add('button', 'Button', 'Basic', '<a class="lp-btn" href="#form">Download Now</a>');
+  add('image', 'Image', 'Basic', { type: 'image', style: { 'max-width': '100%', height: 'auto' } }, { activate: true, select: true });
+  add('video', 'Video', 'Basic', { type: 'video', provider: 'yt', videoId: '', style: { width: '100%', height: '360px' } }, { select: true });
+  add('list', 'List', 'Basic', '<ul><li>First point</li><li>Second point</li><li>Third point</li></ul>');
+  add('check', 'Check list', 'Basic', '<ul style="list-style:none;padding:0;"><li style="margin-bottom:8px;">✓ Benefit one</li><li style="margin-bottom:8px;">✓ Benefit two</li><li style="margin-bottom:8px;">✓ Benefit three</li></ul>');
+  add('quote', 'Quote', 'Basic', '<blockquote style="margin:0 0 16px;padding:10px 20px;border-left:4px solid var(--primary);font-style:italic;font-size:18px;">“A short customer quote or key message.”</blockquote>');
+  add('link', 'Link', 'Basic', '<a href="https://">Link text</a>');
+
+  const src = imgSrc('banner');
+  add('hero', 'Hero banner', 'Sections',
+    `<section class="lp-hero" style="padding:110px 0;background-image:linear-gradient(90deg,rgba(0,0,0,.6),rgba(0,0,0,.1)),url('${src}');background-color:#0f172a;">` +
+    `<div class="container"><p class="eyebrow" style="color:#fff;">Solution Brief</p><h1 style="color:#fff;max-width:640px;margin:0 0 14px;">Your big headline here</h1>` +
+    `<p style="color:#e2e8f0;max-width:560px;font-size:18px;">A supporting line that explains the value.</p><a class="lp-btn" href="#form">Get it now</a></div></section>`);
+  add('imgtext', 'Image + text', 'Sections', row(col(45, `<img src="${src}" style="width:100%;border-radius:10px;">`) +
+    col(55, '<h2>Feature title</h2><p>Explain the feature or benefit in a sentence or two.</p><a class="lp-btn" href="#form">Learn more</a>')));
+  add('card', 'Feature cards', 'Sections', row([1, 2, 3].map(n =>
+    col(0, `<div class="lp-box" style="height:100%;"><h3>Feature ${n}</h3><p>Short description of this feature.</p></div>`)).join('')));
+  add('contentform', 'Content + form', 'Sections', section(
+    `<div class="main-grid" style="padding:0;"><div class="content"><h2>Why download?</h2><p>Explain what the reader gets.</p></div><div data-lp-block="form"></div></div>`, '48px'));
+
+  return ['header', 'banner', 'banner-slim', 'form', 'download', 'footer'];
+}
+
+/* ---------------- Widgets: email (tables + inline styles) ---------------- */
+const FONT = 'font-family:Arial,Helvetica,sans-serif;';
+const T = inner => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${inner}</tr></table>`;
+const td = (inner, style = 'padding:12px 40px;') => `<td class="px" style="${style}${FONT}font-size:15px;line-height:24px;color:#333333;">${inner}</td>`;
+const ebtn = (text = 'Download Now') => `<a href="${esc(META.lp_url || '#')}" target="_blank" style="display:inline-block;background-color:${META.primary || '#0b5cff'};color:${META.btn_text || '#ffffff'};${FONT}font-size:16px;font-weight:bold;line-height:48px;text-decoration:none;padding:0 32px;border-radius:6px;">${text}</a>`;
+const ecol = (w, inner, pad) => `<td class="stack" width="${w}%" valign="top" style="width:${w}%;padding:${pad};${FONT}font-size:15px;line-height:24px;color:#333333;">${inner}</td>`;
+
+function emailBlocks(add) {
+  add('text', 'Text', 'Email content', T(td('<p style="margin:0;">Write your message here. Double-click to edit.</p>')));
+  add('heading', 'Heading', 'Email content', T(td('<h2 style="margin:0;font-size:22px;line-height:30px;color:#0f172a;">Your heading</h2>', 'padding:20px 40px 8px;')));
+  add('button', 'Button', 'Email content', T(`<td align="center" style="padding:16px 40px;">${ebtn()}</td>`));
+  add('image', 'Image', 'Email content', T(`<td style="padding:0;"><img src="${imgSrc('email-banner')}" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td>`));
+  add('list', 'List', 'Email content', T(td('<ul style="margin:0;padding:0 0 0 20px;"><li style="margin:0 0 8px;">First point</li><li style="margin:0 0 8px;">Second point</li><li style="margin:0 0 8px;">Third point</li></ul>')));
+  add('quote', 'Quote', 'Email content', T(td('<p style="margin:0;padding:8px 16px;border-left:4px solid ' + (META.primary || '#0b5cff') + ';font-style:italic;">“A short quote or key message.”</p>')));
+  add('col2', '2 Columns', 'Email layout', T(ecol(50, '<p style="margin:0;">Left column text.</p>', '12px 12px 12px 40px') + ecol(50, '<p style="margin:0;">Right column text.</p>', '12px 40px 12px 12px')));
+  add('col3', '3 Columns', 'Email layout', T(ecol(33, '<p style="margin:0;">Column one.</p>', '12px 8px 12px 40px') + ecol(34, '<p style="margin:0;">Column two.</p>', '12px 8px') + ecol(33, '<p style="margin:0;">Column three.</p>', '12px 40px 12px 8px')));
+  add('imgtext', 'Image + text', 'Email layout', T(ecol(40, `<img src="${imgSrc('email-banner')}" width="200" alt="" style="display:block;width:100%;height:auto;border-radius:6px;">`, '16px 12px 16px 40px') +
+    ecol(60, '<h3 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Feature title</h3><p style="margin:0;">Explain the benefit in a sentence or two.</p>', '16px 40px 16px 12px')));
+  add('box', 'Highlight box', 'Email layout', T(`<td style="padding:12px 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#f1f5f9;border-radius:8px;padding:20px;${FONT}font-size:15px;line-height:24px;color:#333333;"><strong>Key takeaway:</strong> highlight one important point here.</td></tr></table></td>`));
+  add('divider', 'Divider', 'Email layout', T('<td style="padding:12px 40px;"><div style="border-top:1px solid #e2e8f0;font-size:0;line-height:0;">&nbsp;</div></td>'));
+  add('spacer', 'Spacer', 'Email layout', T('<td style="height:24px;font-size:0;line-height:0;">&nbsp;</td>'));
+  return ['email-header', 'email-banner', 'email-content', 'email-cta', 'email-signoff', 'email-footer'];
+}
+
+function addBlocks(bm) {
+  const add = (id, label, category, content, extra = {}) =>
+    bm.add(id, { label, category, media: I[extra.icon || id] || I.section, content, ...extra });
+  const live = (IS_EMAIL ? emailBlocks : webBlocks)(add);
+  const iconFor = { 'banner-slim': 'banner', 'email-header': 'header', 'email-banner': 'banner', 'email-content': 'text',
+    'email-cta': 'button', 'email-signoff': 'text', 'email-footer': 'footer' };
+  live.forEach(key => add(`live-${key}`, LIVE_LABELS[key], 'Campaign (live)', `<div data-lp-block="${key}"></div>`,
+    { icon: iconFor[key] || key, attributes: { class: 'gjs-block live' } }));
+}
+
+/* ---------------- Friendly names, breadcrumb ---------------- */
+const CLASS_NAMES = [
+  ['lp-hero', 'Hero banner'], ['lp-section', 'Section'], ['lp-row', 'Columns'], ['lp-col', 'Column'], ['lp-box', 'Box'],
+  ['main-grid', 'Content + form'], ['container', 'Content area'], ['content', 'Text area'], ['rich', 'Text block'],
+  ['lp-btn', 'Button'], ['lp-spacer', 'Spacer'], ['lp-divider', 'Divider'], ['email-container', 'Email body'],
+  ['ty-card', 'Thank-you card'], ['ty-icon', 'Tick icon'], ['eyebrow', 'Small label'], ['subheadline', 'Sub-headline'], ['stack', 'Column'],
+];
+const TAG_NAMES = { h1: 'Heading', h2: 'Heading', h3: 'Heading', h4: 'Heading', p: 'Paragraph', ul: 'List', ol: 'List', li: 'List item',
+  img: 'Image', a: 'Link', blockquote: 'Quote', table: 'Row', td: 'Cell', tr: 'Table row', hr: 'Divider', svg: 'Icon', span: 'Text' };
+function friendlyName(c) {
+  if (c.getAttributes()['data-lp-block']) return null; // live blocks name themselves
+  const cls = c.getClasses();
+  const hit = CLASS_NAMES.find(([k]) => cls.includes(k));
+  if (hit) return hit[1];
+  return TAG_NAMES[(c.get('tagName') || '').toLowerCase()] || null;
+}
+function nameTree(c) {
+  if (!c.get('name')) { const n = friendlyName(c); if (n) c.set('name', n); }
+  c.components().forEach(nameTree);
+}
+function renderCrumbs() {
+  const el = $('#crumbs');
+  const sel = editor.getSelected();
+  if (!sel || sel.get('type') === 'wrapper') { el.style.display = 'none'; return; }
+  const chain = [];
+  for (let c = sel; c && c.get('type') !== 'wrapper'; c = c.parent()) chain.unshift(c);
+  el.innerHTML = '';
+  chain.forEach((c, i) => {
+    if (i) el.insertAdjacentText('beforeend', '›');
+    if (c === sel) { const b = document.createElement('b'); b.textContent = c.getName(); el.appendChild(b); return; }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = c.getName();
+    b.title = 'Select this ' + c.getName();
+    b.onclick = () => editor.select(c);
+    el.appendChild(b);
+  });
+  el.style.display = 'flex';
+}
+
+/* ---------------- Colour fields: native picker + quick palette ---------------- */
+function toHex(value) {
+  const ctx = document.createElement('canvas').getContext('2d');
+  ctx.fillStyle = '#000000';
+  ctx.fillStyle = value || '#000000';
+  const v = ctx.fillStyle;
+  if (v[0] === '#') return v;
+  const m = v.match(/\d+(\.\d+)?/g) || [0, 0, 0];
+  return '#' + m.slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('');
+}
+function setFieldColor(field, value) {
+  const input = field.querySelector('input');
+  if (!input) return;
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function paletteColors() {
+  return [...new Set([META.primary || '#0b5cff', '#0f172a', '#334155', '#64748b', '#cbd5e1', '#f1f5f9', '#ffffff', '#000000',
+    '#16a34a', '#dc2626', '#f59e0b', '#7c3aed'])];
+}
+// One browser-native colour input, opened next to whichever swatch was clicked.
+const nativeColor = document.createElement('input');
+nativeColor.type = 'color';
+nativeColor.id = 'lpNativeColor';
+document.body.appendChild(nativeColor);
+let colorTarget = null;
+nativeColor.addEventListener('input', () => colorTarget && setFieldColor(colorTarget, nativeColor.value));
+nativeColor.addEventListener('change', () => colorTarget && setFieldColor(colorTarget, nativeColor.value));
+
+function openNativeColor(field, swatch) {
+  colorTarget = field;
+  const r = swatch.getBoundingClientRect();
+  nativeColor.style.left = Math.round(r.left) + 'px';
+  nativeColor.style.top = Math.round(r.bottom) + 'px';
+  nativeColor.value = toHex((field.querySelector('input') || {}).value);
+  try { nativeColor.showPicker(); } catch (e) { nativeColor.click(); }
+}
+
+function enhanceColorFields(root) {
+  root.querySelectorAll('.gjs-field-color').forEach(field => {
+    if (field.dataset.lpColor) return;
+    field.dataset.lpColor = '1';
+    const swatch = field.querySelector('.gjs-field-colorp') || field;
+    swatch.title = 'Pick a colour';
+    // Capture phase on the wrapper: the click never reaches GrapesJS's own picker.
+    ['mousedown', 'click'].forEach(type => swatch.addEventListener(type, e => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (type === 'click') openNativeColor(field, swatch);
+    }, true));
+    const pal = document.createElement('div');
+    pal.className = 'lp-palette';
+    paletteColors().forEach(c => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.style.background = c;
+      b.title = c;
+      b.onclick = () => setFieldColor(field, c);
+      pal.appendChild(b);
+    });
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'clear';
+    clear.title = 'No colour (transparent)';
+    clear.onclick = () => setFieldColor(field, 'transparent');
+    pal.appendChild(clear);
+    (field.closest('.gjs-fields') || field).after(pal);
+  });
+}
+
+/* ---------------- Link, animation, hover ---------------- */
+const ANIMS = [['', 'None'], ['fade', 'Fade in'], ['fade-up', 'Fade up'], ['fade-down', 'Fade down'], ['fade-right', 'From left'],
+  ['fade-left', 'From right'], ['zoom-in', 'Zoom in'], ['zoom-out', 'Zoom out'], ['bounce', 'Bounce'], ['flip', 'Flip up']];
+const HOVERS = [['', 'None'], ['lp-hover-grow', 'Grow'], ['lp-hover-shrink', 'Shrink'], ['lp-hover-lift', 'Lift'],
+  ['lp-hover-glow', 'Glow'], ['lp-hover-brighten', 'Brighten'], ['lp-hover-dim', 'Fade']];
+
+function linkKeys(c) {
+  return (c.get('tagName') || '').toLowerCase() === 'a' ? ['href', 'target'] : ['data-lp-link', 'data-lp-target'];
+}
+function setAttr(c, name, value) {
+  if (value) c.addAttributes({ [name]: value });
+  else c.removeAttributes(name);
+}
+function applyLink(url) {
+  const sel = editor.getSelected();
+  if (!sel) return;
+  const [hrefKey, targetKey] = linkKeys(sel);
+  setAttr(sel, hrefKey, url.trim());
+  if (!url.trim()) setAttr(sel, targetKey, '');
+  else setAttr(sel, targetKey, $('#lnkNew').checked ? '_blank' : '');
+  renderAdvanced();
+}
+function playAnimation() {
+  const sel = editor.getSelected();
+  const el = sel && sel.getEl();
+  if (!el || !sel.getAttributes()['data-anim']) return;
+  el.classList.remove('lp-anim-in');
+  void el.offsetWidth; // restart
+  el.classList.add('lp-anim-in');
+  el.addEventListener('animationend', () => el.classList.remove('lp-anim-in'), { once: true });
+}
+function renderAdvanced() {
+  const sel = editor.getSelected();
+  const on = !!sel && sel.get('type') !== 'wrapper';
+  $('#linkCard').style.display = on ? 'block' : 'none';
+  $('#animCard').style.display = on && !IS_EMAIL ? 'block' : 'none';
+  $('#hoverCard').style.display = on && !IS_EMAIL ? 'block' : 'none';
+  $('#emailFxNote').style.display = on && IS_EMAIL ? 'block' : 'none';
+  $('#detailsTitle').style.display = on ? 'block' : 'none';
+  if (!on) return;
+  const attrs = sel.getAttributes();
+  const [hrefKey, targetKey] = linkKeys(sel);
+  if (document.activeElement !== $('#lnkUrl')) $('#lnkUrl').value = attrs[hrefKey] || '';
+  $('#lnkNew').checked = attrs[targetKey] === '_blank';
+  $('#lnkPdf').disabled = !META.pdf_url;
+  $('#lnkPdf').title = META.pdf_url ? 'Link to the campaign PDF' : 'Upload a PDF in the campaign builder first';
+  $$('#animGrid button').forEach(b => b.classList.toggle('active', (attrs['data-anim'] || '') === b.dataset.anim));
+  $('#animSpeed').value = attrs['data-anim-speed'] || '';
+  $('#animDelay').value = attrs['data-anim-delay'] || '';
+  $('#animSpeed').disabled = $('#animDelay').disabled = $('#animPlay').disabled = !attrs['data-anim'];
+  const cls = sel.getClasses();
+  const hover = (HOVERS.find(([k]) => k && cls.includes(k)) || [''])[0];
+  $$('#hoverGrid button').forEach(b => b.classList.toggle('active', b.dataset.hover === hover));
+}
+function setupAdvanced() {
+  $('#animGrid').innerHTML = ANIMS.map(([k, l]) => `<button type="button" data-anim="${k}">${l}</button>`).join('');
+  $('#hoverGrid').innerHTML = HOVERS.map(([k, l]) => `<button type="button" data-hover="${k}">${l}</button>`).join('');
+  $$('#animGrid button').forEach(b => b.onclick = () => {
+    const sel = editor.getSelected();
+    if (!sel) return;
+    setAttr(sel, 'data-anim', b.dataset.anim);
+    if (!b.dataset.anim) { setAttr(sel, 'data-anim-speed', ''); setAttr(sel, 'data-anim-delay', ''); }
+    renderAdvanced();
+    setTimeout(playAnimation, 50);
+  });
+  $('#animSpeed').onchange = () => { setAttr(editor.getSelected(), 'data-anim-speed', $('#animSpeed').value); playAnimation(); };
+  $('#animDelay').onchange = () => { setAttr(editor.getSelected(), 'data-anim-delay', $('#animDelay').value); playAnimation(); };
+  $('#animPlay').onclick = playAnimation;
+  $$('#hoverGrid button').forEach(b => b.onclick = () => {
+    const sel = editor.getSelected();
+    if (!sel) return;
+    HOVERS.forEach(([k]) => k && sel.removeClass(k));
+    if (b.dataset.hover) sel.addClass(b.dataset.hover);
+    renderAdvanced();
+  });
+  $('#lnkUrl').onchange = () => applyLink($('#lnkUrl').value);
+  $('#lnkUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); applyLink($('#lnkUrl').value); } };
+  $('#lnkNew').onchange = () => applyLink($('#lnkUrl').value);
+  $$('#linkCard [data-link]').forEach(b => b.onclick = () => {
+    const v = b.dataset.link === 'pdf' ? META.pdf_url : b.dataset.link === 'lp' ? META.lp_url : b.dataset.link;
+    if (b.dataset.link === 'pdf' || b.dataset.link === 'lp') $('#lnkNew').checked = true;
+    if (b.dataset.link === '#form') $('#lnkNew').checked = false;
+    $('#lnkUrl').value = v || '';
+    applyLink(v || '');
+  });
+}
+
+/* ---------------- Help ---------------- */
+function openHelp() {
+  const wrap = document.createElement('div');
+  wrap.className = 'lp-modal';
+  wrap.innerHTML = `
+    <ol class="help-steps">
+      <li><b>Add things</b>: drag a widget from <b>Widgets</b> onto the page, or click <b>+ Add</b> / the <b>+</b> on any selected element.</li>
+      <li><b>Select</b>: click anything on the page. The path at the top of the left panel (e.g. Section › Column › Heading) lets you jump to its parent.</li>
+      <li><b>Edit text</b>: double-click it and type.</li>
+      <li><b>Style</b>: the <b>Style</b> tab sets spacing, fonts, colours, background, borders, and where it shows (desktop / tablet / mobile).</li>
+      <li><b>Mobile</b>: switch to the phone view at the top; styles you set there apply to phones only.</li>
+      <li><b>Link, animation, hover</b>: the <b>Advanced</b> tab makes any element clickable and adds entrance animations and hover effects.</li>
+      <li><b>Move</b>: drag the ✥ handle in the element's toolbar, or reorder in <b>Layers</b>.</li>
+      <li><b>Publish</b>: click <b>Save &amp; Publish</b>. Dashed "live" widgets (logos, banner, form, footer) always use the campaign builder's details.</li>
+    </ol>
+    <h4>Keyboard shortcuts</h4>
+    <div class="keys">
+      <span><kbd>Ctrl</kbd> + <kbd>S</kbd></span><span>Save &amp; Publish</span>
+      <span><kbd>Ctrl</kbd> + <kbd>Z</kbd></span><span>Undo</span>
+      <span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></span><span>Redo</span>
+      <span><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>V</kbd></span><span>Copy / paste the selected element</span>
+      <span><kbd>Delete</kbd></span><span>Delete the selected element</span>
+    </div>
+    <div class="modal-actions"><button type="button" class="primary" id="helpOk">Got it</button></div>`;
+  wrap.querySelector('#helpOk').onclick = () => editor.Modal.close();
+  editor.Modal.open({ title: 'How to use the editor', content: wrap });
+  try { localStorage.setItem('lp-editor-help-seen', '1'); } catch (e) {}
+}
+
+/* ---------------- Live campaign blocks, visibility, sticky form ---------------- */
+function lpPlugin(ed) {
+  ed.DomComponents.addType('lp-block', {
+    isComponent: el => el.nodeType === 1 && el.hasAttribute && el.hasAttribute('data-lp-block'),
+    model: {
+      defaults: { droppable: false, editable: false, traits: [], name: 'Live block' },
+      init() {
+        const key = this.getAttributes()['data-lp-block'];
+        this.set('name', '⚡ ' + (LIVE_LABELS[key] || key));
+        this.components().reset(); // previews are drawn by the view, never stored
+      },
+    },
+    view: {
+      onRender() {
+        const key = this.model.getAttributes()['data-lp-block'];
+        const html = BLOCKS[key];
+        this.el.innerHTML = html
+          ? `<div style="pointer-events:none">${html}</div>`
+          : `<div style="pointer-events:none;padding:14px;border:1px dashed #94a3b8;color:#64748b;text-align:center;font:13px sans-serif">${LIVE_LABELS[key] || key}: nothing to show yet (set it up in the campaign builder)</div>`;
+      },
+    },
+  });
+
+  // Checkbox trait that toggles a CSS class (used for hide-on-device and the sticky form switch).
+  ed.TraitManager.addType('lp-class-toggle', {
+    createInput() {
+      const el = document.createElement('input');
+      el.type = 'checkbox';
+      el.style.width = 'auto';
+      return el;
+    },
+    onEvent({ elInput, component, trait }) {
+      const cls = trait.get('cls');
+      elInput.checked ? component.addClass(cls) : component.removeClass(cls);
+    },
+    onUpdate({ elInput, component, trait }) {
+      elInput.checked = component.getClasses().includes(trait.get('cls'));
+    },
+  });
+}
+
+const VISIBILITY = IS_EMAIL
+  ? [['lp-hide-desktop', 'Hide on desktop'], ['lp-hide-mobile', 'Hide on mobile']]
+  : [['lp-hide-desktop', 'Hide on desktop'], ['lp-hide-tablet', 'Hide on tablet'], ['lp-hide-mobile', 'Hide on mobile']];
+
+function renderVisibility() {
+  const sel = editor.getSelected();
+  const card = $('#visCard');
+  card.style.display = sel && sel.get('type') !== 'wrapper' ? 'block' : 'none';
+  if (!sel) return;
+  const cls = sel.getClasses();
+  const shown = [];
+  $$('#visCard [data-cls]').forEach(b => {
+    const hidden = cls.includes(b.dataset.cls);
+    b.classList.toggle('off', hidden);
+    b.title = (hidden ? 'Hidden' : 'Visible') + ' on ' + b.textContent.trim() + '. Click to ' + (hidden ? 'show' : 'hide') + '.';
+    if (!hidden && b.style.display !== 'none') shown.push(b.textContent.trim());
+  });
+  const total = VISIBILITY.length;
+  const sum = $('#visSummary');
+  sum.className = 'vis-summary' + (shown.length ? '' : ' warn');
+  sum.textContent = !shown.length ? 'Hidden on every device: it will not appear anywhere.'
+    : shown.length === total ? 'Visible on all devices.' : 'Visible on ' + shown.join(' and ') + ' only.';
+}
+
+function setHidden(clsList) {
+  const sel = editor.getSelected();
+  if (!sel) return;
+  VISIBILITY.forEach(([cls]) => clsList.includes(cls) ? sel.addClass(cls) : sel.removeClass(cls));
+  renderVisibility();
+}
+
+function enhanceSelected(comp) {
+  if (!comp || comp.get('type') === 'wrapper') return;
+  // Elementor-style "+" in the element toolbar
+  const tb = comp.get('toolbar') || [];
+  if (!tb.some(t => t.id === 'lp-add')) {
+    comp.set('toolbar', [{ id: 'lp-add', label: I.plus, command: 'lp:add', attributes: { title: 'Add an element here' } }, ...tb]);
+  }
+  const names = comp.getTraits().map(t => t.get('name'));
+  const extra = [];
+  if (comp.getAttributes()['data-lp-block'] === 'form' && !names.includes('lp-no-sticky')) {
+    extra.unshift({ type: 'lp-class-toggle', name: 'lp-no-sticky', cls: 'lp-no-sticky', label: 'Turn off sticky form' });
+  }
+  if (extra.length) comp.addTrait(extra);
+}
+
+/* ---------------- "+" add element ---------------- */
+function rootContainer() {
+  const w = editor.getWrapper();
+  return (IS_EMAIL && w.find('.email-container')[0]) || w;
+}
+function isContainer(c) {
+  if (!c || c.get('type') === 'text' || c.get('type') === 'lp-block' || !c.get('droppable')) return false;
+  const cls = c.getClasses();
+  return ['lp-col', 'lp-box', 'container', 'email-container', 'content'].some(k => cls.includes(k)) ||
+    (c.get('tagName') === 'td' && !c.components().length);
+}
+
+function insertBlock(block, target) {
+  let parent, at;
+  if (!target) { parent = rootContainer(); at = parent.components().length; }
+  else if (isContainer(target)) { parent = target; at = target.components().length; }
+  else { parent = target.parent(); at = parent.components().indexOf(target) + 1; }
+  const added = parent.append(block.get('content'), { at });
+  const first = Array.isArray(added) ? added[0] : added;
+  if (first) {
+    editor.select(first);
+    editor.Canvas.scrollTo(first, { behavior: 'smooth', block: 'center' });
+    if (block.get('activate') && first.get('type') === 'image') editor.runCommand('core:open-assets', { target: first });
+  }
+  editor.Modal.close();
+}
+
+function openAdd(target) {
+  const wrap = document.createElement('div');
+  wrap.className = 'lp-modal';
+  const where = !target ? 'at the end of the page' : isContainer(target) ? `inside the selected ${target.getName()}` : `after the selected ${target.getName()}`;
+  wrap.innerHTML = `<p class="add-where">The new element will be added <b>${esc(where)}</b>.</p>`;
+  const cats = {};
+  editor.BlockManager.getAll().forEach(b => {
+    const cat = b.get('category');
+    const name = typeof cat === 'string' ? cat : (cat && cat.get ? cat.get('label') : 'Other');
+    (cats[name] = cats[name] || []).push(b);
+  });
+  Object.entries(cats).forEach(([cat, blocks]) => {
+    wrap.insertAdjacentHTML('beforeend', `<h4>${esc(cat)}</h4>`);
+    const grid = document.createElement('div');
+    grid.className = 'add-grid';
+    blocks.forEach(b => {
+      const t = document.createElement('button');
+      t.className = 'add-tile' + (b.getId().startsWith('live-') ? ' live' : '');
+      t.innerHTML = `${b.get('media') || ''}<span>${esc(b.get('label'))}</span>`;
+      t.onclick = () => insertBlock(b, target);
+      grid.appendChild(t);
+    });
+    wrap.appendChild(grid);
+  });
+  editor.Modal.open({ title: 'Add element', content: wrap });
+}
+
+/* ---------------- Form fields editor ---------------- */
+const FIELD_TYPES = ['text', 'email', 'tel', 'number', 'select', 'radio', 'textarea', 'checkbox', 'url', 'hidden'];
+function openFormEditor() {
+  const f = JSON.parse(JSON.stringify(FORM || {}));
+  const wrap = document.createElement('div');
+  wrap.className = 'lp-modal';
+  wrap.innerHTML = `
+    <div class="grid2">
+      <label class="f">Form title<input data-k="form_title"></label>
+      <label class="f">Submit button text<input data-k="submit_text"></label>
+    </div>
+    <label class="f" style="margin-top:10px">Intro text<input data-k="form_intro"></label>
+    <h4>Fields <span class="muted" style="text-transform:none;letter-spacing:0">(drag ⋮⋮ to reorder; "half" puts two fields side by side)</span></h4>
+    <div id="fieldRows"></div>
+    <button type="button" class="add-tile" id="addField" style="flex-direction:row;padding:8px 12px;width:auto">+ Add field</button>
+    <h4>Consent</h4>
+    <div class="grid2">
+      <label class="f">Consent style<select data-k="consent_type"><option value="checkbox">Checkbox the visitor must tick</option><option value="text">Text only (no checkbox)</option></select></label>
+      <span class="muted" style="align-self:end">HTML links are allowed, e.g. &lt;a href="https://…"&gt;Privacy Policy&lt;/a&gt;</span>
+    </div>
+    <label class="f" style="margin-top:10px">Consent text<textarea data-k="consent_text"></textarea></label>
+    <div class="modal-actions"><button type="button" id="formCancel">Cancel</button><button type="button" class="primary" id="formSave">Save form</button></div>`;
+  wrap.querySelectorAll('[data-k]').forEach(el => { el.value = f[el.dataset.k] || (el.dataset.k === 'consent_type' ? 'checkbox' : ''); });
+  const rows = wrap.querySelector('#fieldRows');
+  let drag = null;
+  const addRow = (fd = { label: '', type: 'text', width: 'full', required: false }) => {
+    const r = document.createElement('div');
+    r.className = 'frow';
+    r.innerHTML = `<span class="handle" title="Drag to reorder">⋮⋮</span>
+      <div class="sub"><input class="lbl" placeholder="Field label"><input class="opts" placeholder="Options, comma separated"><input class="ph" placeholder="Placeholder (or value for hidden fields)"></div>
+      <select class="type">${FIELD_TYPES.map(t => `<option>${t}</option>`).join('')}</select>
+      <select class="width"><option value="full">full</option><option value="half">half</option></select>
+      <label class="req">Req<input type="checkbox" class="rq"></label>
+      <button type="button" class="del" title="Remove">✕</button>`;
+    r.querySelector('.lbl').value = fd.label || '';
+    r.querySelector('.type').value = fd.type || 'text';
+    r.querySelector('.width').value = fd.width || 'full';
+    r.querySelector('.rq').checked = !!fd.required;
+    r.querySelector('.ph').value = fd.placeholder || '';
+    r.dataset.id = fd.id || '';
+    r.dataset.cls = fd.css_class || '';
+    const opts = r.querySelector('.opts');
+    opts.value = (fd.options || []).join(', ');
+    const sync = () => { opts.style.display = ['select', 'radio'].includes(r.querySelector('.type').value) ? '' : 'none'; };
+    r.querySelector('.type').onchange = sync; sync();
+    r.querySelector('.del').onclick = () => r.remove();
+    r.querySelector('.handle').onmousedown = () => { r.draggable = true; };
+    r.ondragstart = e => { drag = r; r.classList.add('dragging'); e.dataTransfer.setData('text/plain', ''); };
+    r.ondragend = () => { r.draggable = false; r.classList.remove('dragging'); drag = null; };
+    rows.appendChild(r);
+  };
+  rows.ondragover = e => {
+    if (!drag) return;
+    e.preventDefault();
+    const after = [...rows.children].find(x => x !== drag && e.clientY < x.getBoundingClientRect().top + x.offsetHeight / 2);
+    rows.insertBefore(drag, after || null);
+  };
+  (f.fields || []).forEach(addRow);
+  wrap.querySelector('#addField').onclick = () => addRow();
+  wrap.querySelector('#formCancel').onclick = () => editor.Modal.close();
+  wrap.querySelector('#formSave').onclick = async () => {
+    const body = {};
+    wrap.querySelectorAll('[data-k]').forEach(el => { body[el.dataset.k] = el.value; });
+    body.fields = [...rows.children].map(r => ({
+      label: r.querySelector('.lbl').value.trim(), type: r.querySelector('.type').value,
+      width: r.querySelector('.width').value, required: r.querySelector('.rq').checked,
+      placeholder: r.querySelector('.ph').value.trim(), id: r.dataset.id || undefined, css_class: r.dataset.cls,
+      options: r.querySelector('.opts').value.split(',').map(s => s.trim()).filter(Boolean),
+    })).filter(x => x.label);
+    const btn = wrap.querySelector('#formSave'); btn.disabled = true; btn.textContent = 'Saving…';
+    const res = await fetch(`/api/campaigns/${SLUG}/form`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!res.ok) { btn.disabled = false; btn.textContent = 'Save form'; alert(d.error || 'Failed'); return; }
+    FORM = d.form; BLOCKS = d.blocks;
+    refreshLiveBlocks();
+    editor.Modal.close();
+    setState('Form saved and published', 'ok');
+  };
+  editor.Modal.open({ title: 'Lead form', content: wrap });
+}
+
+function refreshLiveBlocks() {
+  editor.getWrapper().find('[data-lp-block]').forEach(c => c.view && c.view.render());
+}
+
+/* ---------------- Custom code (CSS / mobile CSS / JS) ---------------- */
+function customCssText() {
+  let css = CUSTOM.custom_css || '';
+  if ((CUSTOM.custom_mobile_css || '').trim()) css += `\n@media (max-width: ${MOBILE_MAX}px) {\n${CUSTOM.custom_mobile_css}\n}`;
+  return css;
+}
+function applyCustomCss() {
+  const doc = editor.Canvas.getDocument();
+  if (!doc) return;
+  let st = doc.getElementById('lp-custom-css');
+  if (!st) { st = doc.createElement('style'); st.id = 'lp-custom-css'; doc.head.appendChild(st); }
+  st.textContent = customCssText();
+}
+function openCode() {
+  const wrap = document.createElement('div');
+  wrap.className = 'lp-modal';
+  wrap.innerHTML = `
+    <p class="muted">For most changes use the Style tab: pick the <b>Mobile</b> view at the top and any style you set applies to phones only.
+    Use these boxes for anything extra. Classes you can target: <code>.lp-section</code>, <code>.lp-row</code>, <code>.lp-col</code>, <code>.lp-btn</code>, <code>.form-card</code>.</p>
+    <label class="f">CSS for all screens<textarea class="code" data-k="custom_css" placeholder=".lp-btn { border-radius: 30px; }"></textarea></label>
+    <label class="f" style="margin-top:10px">CSS for mobile only (screens up to ${MOBILE_MAX}px)<textarea class="code" data-k="custom_mobile_css" placeholder="h1 { font-size: 26px; }"></textarea></label>
+    ${IS_EMAIL ? '<p class="muted">JavaScript is not allowed in emails.</p>' :
+      '<label class="f" style="margin-top:10px">JavaScript (runs on the published page; not in the editor)<textarea class="code" data-k="custom_js" placeholder="// e.g. analytics or chat widget code"></textarea></label>'}
+    <div class="modal-actions"><button type="button" id="codeCancel">Cancel</button><button type="button" class="primary" id="codeApply">Apply</button></div>`;
+  wrap.querySelectorAll('[data-k]').forEach(el => { el.value = CUSTOM[el.dataset.k] || ''; });
+  wrap.querySelector('#codeCancel').onclick = () => editor.Modal.close();
+  wrap.querySelector('#codeApply').onclick = () => {
+    wrap.querySelectorAll('[data-k]').forEach(el => { CUSTOM[el.dataset.k] = el.value; });
+    applyCustomCss();
+    markDirty();
+    editor.Modal.close();
+  };
+  editor.Modal.open({ title: 'Custom code', content: wrap });
+}
+
+/* ---------------- Init ---------------- */
+const FONT_OPTIONS = [
+  { id: '', label: 'Default' },
+  { id: "'Segoe UI', Roboto, Arial, sans-serif", label: 'System' },
+  { id: 'Arial, Helvetica, sans-serif', label: 'Arial' },
+  { id: 'Georgia, serif', label: 'Georgia' },
+  { id: 'Verdana, sans-serif', label: 'Verdana' },
+  { id: 'Tahoma, sans-serif', label: 'Tahoma' },
+  ...(IS_EMAIL ? [] : ['Inter', 'Poppins', 'Roboto', 'Open Sans', 'Montserrat', 'Lato'].map(f => ({ id: `'${f}', sans-serif`, label: f }))),
+];
+
+// Canvas-only CSS: show hidden-per-device elements faded instead of removing them, and email canvas basics.
+const CANVAS_CSS = IS_EMAIL ? `
+  body { background:#f1f5f9; padding:24px 10px; }
+  [data-lp-block] { display:block; }
+  img { max-width:100%; }
+  @media (max-width:620px) {
+    .email-container { width:100% !important; }
+    .stack { display:block !important; width:100% !important; }
+    .px { padding-left:20px !important; padding-right:20px !important; }
+    .logo-cell { display:block !important; width:100% !important; text-align:center !important; }
+    body .lp-hide-mobile { opacity:.3; outline:2px dashed #f59e0b; }
+  }
+  @media (min-width:621px) { body .lp-hide-desktop { opacity:.3; outline:2px dashed #f59e0b; } }
+` : `
+  @media (min-width:992px) { body .lp-hide-desktop { display:revert !important; opacity:.45; outline:2px dashed #f59e0b; outline-offset:-2px; position:relative; }
+    body .lp-hide-desktop:not(img):not(input):not(hr)::before { content:'Hidden on desktop'; position:absolute; top:0; left:0; z-index:5; background:#f59e0b; color:#111; font:600 11px/1 sans-serif; padding:3px 6px; border-radius:0 0 4px 0; pointer-events:none; } }
+  @media (min-width:768px) and (max-width:991px) { body .lp-hide-tablet { display:revert !important; opacity:.45; outline:2px dashed #f59e0b; outline-offset:-2px; position:relative; }
+    body .lp-hide-tablet:not(img):not(input):not(hr)::before { content:'Hidden on tablet'; position:absolute; top:0; left:0; z-index:5; background:#f59e0b; color:#111; font:600 11px/1 sans-serif; padding:3px 6px; border-radius:0 0 4px 0; pointer-events:none; } }
+  @media (max-width:767px) { body .lp-hide-mobile { display:revert !important; opacity:.45; outline:2px dashed #f59e0b; outline-offset:-2px; position:relative; }
+    body .lp-hide-mobile:not(img):not(input):not(hr)::before { content:'Hidden on mobile'; position:absolute; top:0; left:0; z-index:5; background:#f59e0b; color:#111; font:600 11px/1 sans-serif; padding:3px 6px; border-radius:0 0 4px 0; pointer-events:none; } }
+`;
+
+function setState(text, cls) { const s = $('#state'); s.textContent = text; s.title = text; s.className = cls || ''; }
+function markDirty() { dirty = true; setState('Unsaved changes', 'dirty'); }
+
+function showNotice() {
+  const n = $('#notice');
+  document.body.classList.add('has-notice');
+  n.style.display = 'flex';
+  const what = IS_EMAIL ? 'email' : 'page';
+  if (enabled) {
+    n.className = 'live';
+    n.innerHTML = `This visual design is live on the published ${what}.<button id="useStd">Use the standard template instead</button>`;
+    $('#useStd').onclick = () => setMode(false);
+  } else {
+    n.className = '';
+    n.innerHTML = `This ${what} currently uses the standard template. <b>Save &amp; Publish</b> switches it to this visual design.`;
+  }
+}
+
+async function setMode(on) {
+  const r = await fetch(`/api/campaigns/${SLUG}/visual/${PAGE}/mode`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: on }) });
+  const d = await r.json();
+  if (!r.ok) { alert(d.error || 'Failed'); return; }
+  enabled = d.enabled; showNotice();
+}
+
+function updateDevNote() {
+  const dev = String(editor.getDevice() || 'desktop').toLowerCase();
+  const note = $('#devnote');
+  note.style.display = editor.getSelected() ? 'block' : 'none';
+  note.className = dev === 'mobile' ? 'mobile' : '';
+  note.innerHTML = dev === 'desktop' ? 'Styling for <b>all screens</b>. Switch to Tablet or Mobile at the top to set styles for smaller screens only.'
+    : dev === 'tablet' ? 'Styling for <b>tablet and smaller</b> (up to 991px). Desktop is not affected.'
+    : `Styling for <b>mobile only</b> (up to ${MOBILE_MAX}px). Desktop and tablet are not affected.`;
+}
+
+async function init() {
+  const data = await (await fetch(`/api/campaigns/${SLUG}/visual/${PAGE}`)).json();
+  BLOCKS = data.blocks || {};
+  META = data.meta || {};
+  FORM = data.form || {};
+  CUSTOM = data.custom || {};
+  enabled = data.enabled;
+  const fonts = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Montserrat:wght@400;700&family=Lato:wght@400;700&display=swap';
+  const devices = IS_EMAIL
+    ? [{ id: 'desktop', name: 'Desktop', width: '' }, { id: 'tablet', name: 'Tablet', width: '680px', widthMedia: '' }, { id: 'mobile', name: 'Mobile', width: '375px', widthMedia: '620px' }]
+    : [{ id: 'desktop', name: 'Desktop', width: '' }, { id: 'tablet', name: 'Tablet', width: '768px', widthMedia: '991px' }, { id: 'mobile', name: 'Mobile', width: '375px', widthMedia: '767px' }];
+
+  editor = grapesjs.init({
+    container: '#gjs',
+    height: '100%',
+    width: 'auto',
+    storageManager: false,
+    panels: { defaults: [] },
+    projectData: data.project || { pages: [{ component: data.seed || '' }] },
+    canvas: { styles: IS_EMAIL ? [] : [`/c/${SLUG}/landing-page/assets/style.css?v=${Date.now()}`, fonts] },
+    canvasCss: CANVAS_CSS,
+    plugins: [lpPlugin],
+    blockManager: { appendTo: '#blocks' },
+    layerManager: { appendTo: '#layers' },
+    traitManager: { appendTo: '#traits' },
+    selectorManager: { componentFirst: true },
+    colorPicker: { appendTo: 'body' },
+    deviceManager: { devices },
+    assetManager: { upload: `/api/campaigns/${SLUG}/media`, uploadName: 'files', multiUpload: true, autoAdd: true },
+    styleManager: {
+      appendTo: '#styles',
+      sectors: [
+        { name: 'Spacing', open: true, properties: ['margin', 'padding'] },
+        { name: 'Typography', open: true, properties: [
+          { extend: 'font-family', options: FONT_OPTIONS }, 'font-size', 'font-weight', 'color', 'line-height', 'letter-spacing',
+          'text-align', 'text-transform', 'text-decoration', 'font-style', 'text-shadow'] },
+        { name: 'Background', open: true, properties: ['background-color', 'background'] },
+        { name: 'Alignment & layout', properties: [
+          'display', 'flex-direction', 'justify-content', 'align-items', 'flex-wrap', 'gap', 'flex-basis', 'order', 'align-self', 'vertical-align', 'float', 'position', 'top', 'right', 'bottom', 'left', 'z-index'] },
+        { name: 'Size', properties: ['width', 'min-width', 'max-width', 'height', 'min-height', 'max-height', 'overflow'] },
+        { name: 'Border & shadow', properties: ['border', 'border-radius', 'box-shadow'] },
+        { name: 'Effects', properties: ['opacity', 'transform', 'transition', 'cursor'] },
+      ],
+    },
+  });
+
+  editor.Commands.add('lp:add', { run(ed) { openAdd(ed.getSelected()); } });
+  addBlocks(editor.BlockManager);
+  fetch(`/api/campaigns/${SLUG}/media`).then(r => r.json()).then(d => editor.AssetManager.add(d.data || []));
+
+  editor.on('load', () => {
+    editor.runCommand('core:component-outline');
+    applyCustomCss();
+    nameTree(editor.getWrapper());
+    dirty = false;
+    let seen = false;
+    try { seen = !!localStorage.getItem('lp-editor-help-seen'); } catch (e) {}
+    if (!seen) setTimeout(openHelp, 400);
+    setState(data.project ? 'Saved design loaded' : 'Starting layout from the campaign builder', 'ok');
+    $('#open').href = PAGE_URL;
+  });
+  editor.on('update', () => { if (editor.getDirtyCount()) markDirty(); });
+
+  // Elementor-style: selecting an element opens its Style panel.
+  editor.on('component:toggled', () => {
+    const sel = editor.getSelected();
+    $('#style-empty').style.display = sel ? 'none' : '';
+    $('#traits-empty').style.display = sel ? 'none' : '';
+    $('#formActions').style.display = sel && sel.getAttributes()['data-lp-block'] === 'form' ? 'flex' : 'none';
+    renderVisibility();
+    renderAdvanced();
+    renderCrumbs();
+    if (sel) {
+      enhanceSelected(sel);
+      if ($('#tabs .active').dataset.pane === 'blocks') showPane('style');
+    }
+    updateDevNote();
+  });
+  editor.on('change:device', updateDevNote);
+  editor.on('component:add', c => { nameTree(c); });
+  editor.on('component:update:attributes', () => renderAdvanced());
+  new MutationObserver(() => enhanceColorFields($('#styles'))).observe($('#styles'), { childList: true, subtree: true });
+  enhanceColorFields($('#styles'));
+  setupAdvanced();
+  editor.Keymaps.add('lp:save', '⌘+s, ctrl+s', () => save(), { prevent: true });
+  showNotice();
+}
+
+/* ---------------- UI wiring ---------------- */
+function showPane(name) {
+  $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.pane === name));
+  $$('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+}
+$$('#tabs button').forEach(b => b.onclick = () => showPane(b.dataset.pane));
+
+$('#search').oninput = e => {
+  const q = e.target.value.toLowerCase();
+  const bm = editor.BlockManager;
+  bm.render(q ? bm.getAll().filter(b => b.get('label').toLowerCase().includes(q)) : bm.getAll().models);
+};
+
+$$('#devices button').forEach(b => b.onclick = () => {
+  $$('#devices button').forEach(x => x.classList.toggle('active', x === b));
+  editor.setDevice({ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' }[b.dataset.device]);
+});
+$('#addBtn').onclick = () => openAdd(editor.getSelected());
+$$('#visCard [data-cls]').forEach(b => b.onclick = () => {
+  const sel = editor.getSelected();
+  if (!sel) return;
+  const cls = b.dataset.cls;
+  sel.getClasses().includes(cls) ? sel.removeClass(cls) : sel.addClass(cls);
+  renderVisibility();
+});
+$$('#visCard [data-preset]').forEach(b => b.onclick = () => setHidden({
+  all: [],
+  desktop: ['lp-hide-tablet', 'lp-hide-mobile'],
+  mobile: IS_EMAIL ? ['lp-hide-desktop'] : ['lp-hide-desktop', 'lp-hide-tablet'],
+}[b.dataset.preset]));
+if (IS_EMAIL) {
+  $('#visCard [data-cls=lp-hide-tablet]').style.display = 'none';
+  $('#visCard .vis-btns').style.setProperty('--n', 2);
+}
+$('#addSection').onclick = () => { editor.select(null); openAdd(null); };
+$('#undo').onclick = () => editor.UndoManager.undo();
+$('#redo').onclick = () => editor.UndoManager.redo();
+$('#outline').onclick = () => {
+  const id = 'core:component-outline', on = editor.Commands.isActive(id);
+  on ? editor.stopCommand(id) : editor.runCommand(id);
+  $('#outline').classList.toggle('on', !on);
+};
+$('#preview').onclick = () => editor.runCommand('core:preview');
+$('#formBtn').onclick = openFormEditor;
+$('#formBtn2').onclick = openFormEditor;
+$('#codeBtn').onclick = openCode;
+$('#helpBtn').onclick = openHelp;
+if (IS_EMAIL) { $('#formBtn').style.display = 'none'; $('#devices [data-device=tablet]').style.display = 'none'; }
+$('#reset').onclick = async () => {
+  if (!confirm('Discard this visual design and start again from the standard layout? This cannot be undone.')) return;
+  await fetch(`/api/campaigns/${SLUG}/visual/${PAGE}`, { method: 'DELETE' });
+  dirty = false;
+  location.reload();
+};
+
+async function save() {
+  if (saving) return;
+  saving = true; $('#save').disabled = true; setState('Saving…');
+  try {
+    const body = {
+      project: editor.getProjectData(),
+      html: editor.getHtml(),
+      css: editor.getCss({ avoidProtected: true }),
+      ...CUSTOM,
+    };
+    const r = await fetch(`/api/campaigns/${SLUG}/visual/${PAGE}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Save failed');
+    editor.clearDirtyCount();
+    dirty = false; enabled = true; showNotice();
+    setState('Published ' + new Date().toLocaleTimeString(), 'ok');
+  } catch (err) {
+    setState('Not saved: ' + err.message, 'err');
+  } finally {
+    saving = false; $('#save').disabled = false;
+  }
+}
+$('#save').onclick = save;
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+init().catch(err => setState('Failed to load: ' + err.message, 'err'));
+</script>
+</body>
+</html>
